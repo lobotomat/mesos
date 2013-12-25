@@ -1,13 +1,13 @@
 #ifndef __STOUT_LAMBDA_HPP__
 #define __STOUT_LAMBDA_HPP__
 
-#include <tr1/functional>
+#include "stdcxx/_functional.hpp"
 
 namespace lambda {
 
-using std::tr1::bind;
-using std::tr1::function;
-using namespace std::tr1::placeholders;
+using _bind;
+using _function;
+using namespace _placeholders;
 
 } // namespace lambda {
 

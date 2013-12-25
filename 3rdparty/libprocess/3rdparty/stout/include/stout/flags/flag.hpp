@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include <tr1/functional>
+#include "stdcxx/_functional.hpp"
 
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
@@ -18,8 +18,8 @@ struct Flag
   std::string name;
   std::string help;
   bool boolean;
-  std::tr1::function<Try<Nothing>(FlagsBase*, const std::string&)> loader;
-  std::tr1::function<Option<std::string>(const FlagsBase&)> stringify;
+  _function<Try<Nothing>(FlagsBase*, const std::string&)> loader;
+  _function<Option<std::string>(const FlagsBase&)> stringify;
 };
 
 } // namespace flags {

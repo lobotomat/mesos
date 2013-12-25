@@ -109,14 +109,6 @@ AC_CONFIG_FILES([src/java/generated/org/apache/mesos/MesosNativeLibrary.java])
 
 AC_CONFIG_FILES([mpi/mpiexec-mesos], [chmod +x mpi/mpiexec-mesos])
 
-
-AC_ARG_WITH([cpp11],
-            [AS_HELP_STRING([--with-cpp11],
-              [compile using the C++11 standard @<:@default=check@:>@])],
-            [],
-            [with_cpp11=check])
-
-
 AC_ARG_ENABLE([java],
               AS_HELP_STRING([--disable-java],
                              [don't build Java bindings]),
@@ -233,28 +225,6 @@ ACX_PTHREAD([], [AC_MSG_ERROR([failed to find pthreads])])
 
 # Check for libunwind, and link it in if present.
 AC_CHECK_LIB(unwind, backtrace, LIBS="$LIBS -lunwind")
-
-
-#check user values on C++11 usage
-AS_IF([test "x$with_cpp11" = "xyes"], 
-[
-  AC_DEFINE(HAVE_CXX11, 1, [Whether the compiler supports ISO C++ 11])
-],
-[test "x$with_cpp11" = "xcheck"], 
-[
-  #checking if C++11 is available
-  AX_CXX_COMPILE_STDCXX_11([noext], [optional])
-])
-
-#checking if the C++ standard library supports TR1 specifics 
-AC_HEADER_STDCXX_TR1()
-AS_IF([test "x$ac_cv_cxx_stdcxx_tr1" = "xyes"],
-[
-  AC_DEFINE(HAVE_CXXTR1, 1, [Whether the C++ standard library supports ISO C++ TR1])
-])
-
-#check for BOOST 1.55 or higher
-AX_BOOST_BASE(1.55.0, [], [])
 
 
 # TODO(benh): Consider using AS_IF instead of just shell 'if'
@@ -551,26 +521,3 @@ We need libsasl2 for authentication!
 AM_CONDITIONAL([GIT_REPO], [test -d ${srcdir}"/.git"])
 
 AC_OUTPUT
-
-
-AC_MSG_RESULT([--------------------------------------])
-AC_MSG_RESULT([Compiling C++ with: $CXX])
-AC_MSG_RESULT([Using flags: $CXXFLAGS])
-AC_MSG_RESULT([Linker flags: $LDFLAGS $LIBS])
-AC_MSG_RESULT([--------------------------------------])
-AC_MSG_CHECKING([whether ISO C++ 11 is enabled])
-AC_EGREP_CPP(yes_have_cxx11, [
-#ifdef HAVE_CXX11
-yes_have_cxx11
-#endif ], [ AC_MSG_RESULT([yes]) ], [ AC_MSG_RESULT([no]) ]) 
-AC_MSG_CHECKING([whether ISO C++ TR11 is enabled])
-AC_EGREP_CPP(yes_have_cxxtr1, [
-#ifdef HAVE_CXXTR1
-yes_have_cxxtr1
-#endif ], [ AC_MSG_RESULT([yes]) ], [ AC_MSG_RESULT([no]) ]) 
-AC_MSG_CHECKING([whether BOOST is enabled])
-AC_EGREP_CPP(yes_have_boost, [
-#ifdef HAVE_BOOST
-yes_have_boost
-#endif ], [ AC_MSG_RESULT([yes]) ], [ AC_MSG_RESULT([no]) ]) 
-AC_MSG_RESULT([======================================])

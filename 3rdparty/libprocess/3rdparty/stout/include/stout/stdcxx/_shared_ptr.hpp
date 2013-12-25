@@ -21,4 +21,4 @@
     #error needs either C++11, C++TR1 or BOOST enabled 
 #endif 
 
-#endif 
+#endif // __STOUT_SHARED_PTR_HPP__
