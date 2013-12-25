@@ -3,7 +3,7 @@
 
 #include <stdlib.h> // For abort.
 
-#include <tr1/functional>
+#include "stout/stdcxx/_functional.hpp"
 
 #include <process/timeout.hpp>
 
@@ -20,7 +20,7 @@ public:
 
   static Timer create(
       const Duration& duration,
-      const std::tr1::function<void(void)>& thunk);
+      const stout_function<void(void)>& thunk);
 
   static bool cancel(const Timer& timer);
 
@@ -53,7 +53,7 @@ private:
   Timer(long _id,
         const Timeout& _t,
         const process::UPID& _pid,
-        const std::tr1::function<void(void)>& _thunk)
+        const stout_function<void(void)>& _thunk)
     : id(_id), t(_t), pid(_pid), thunk(_thunk)
   {}
 
@@ -68,7 +68,7 @@ private:
   // valid and get a refernce to it.)
   process::UPID pid;
 
-  std::tr1::function<void(void)> thunk;
+  stout_function<void(void)> thunk;
 };
 
 } // namespace process {

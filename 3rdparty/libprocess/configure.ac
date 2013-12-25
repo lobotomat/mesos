@@ -95,6 +95,9 @@ if test "x$enable_optimize" = "xyes"; then
   fi
 fi
 
+# Checking if C++11 is available. Enables compiler standard selection 
+# (-std=c++11) when available. 
+AX_CXX_COMPILE_STDCXX_11([noext], [optional])
 
 # Check if we should/can build with libz.
 if test "x$with_zlib" = "xyes"; then

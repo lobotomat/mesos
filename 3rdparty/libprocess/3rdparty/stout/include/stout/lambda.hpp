@@ -5,9 +5,9 @@
 
 namespace lambda {
 
-using _bind;
-using _function;
-using namespace _placeholders;
+using stout_bind;
+using stout_function;
+using namespace stout_placeholders;
 
 } // namespace lambda {
 

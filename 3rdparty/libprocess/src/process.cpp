@@ -40,8 +40,8 @@
 #include <stdexcept>
 #include <vector>
 
-#include <tr1/functional>
-#include <tr1/memory> // TODO(benh): Replace all shared_ptr with unique_ptr.
+#include "stout/stdcxx/_functional.hpp"
+#include "stout/stdcxx/_shared_ptr.hpp" // TODO(benh): Replace all shared_ptr with unique_ptr.
 
 #include <boost/shared_array.hpp>
 
@@ -3177,7 +3177,7 @@ void ProcessBase::visit(const HttpEvent& event)
   if (handlers.http.count(name) > 0) {
     // Create the promise to link with whatever gets returned, as well
     // as a future to wait for the response.
-    std::tr1::shared_ptr<Promise<Response> > promise(
+    stout_shared_ptr<Promise<Response> > promise(
         new Promise<Response>());
 
     Future<Response>* future = new Future<Response>(promise->future());
@@ -3420,7 +3420,7 @@ namespace internal {
 void read(int fd,
           void* data,
           size_t size,
-          const std::tr1::shared_ptr<Promise<size_t> >& promise,
+          const stout_shared_ptr<Promise<size_t> >& promise,
           const Future<short>& future)
 {
   // Ignore this function if the read operation has been cancelled.
@@ -3487,7 +3487,7 @@ Future<size_t> read(int fd, void* data, size_t size)
 {
   process::initialize();
 
-  std::tr1::shared_ptr<Promise<size_t> > promise(new Promise<size_t>());
+  stout_shared_ptr<Promise<size_t> > promise(new Promise<size_t>());
 
   // Check the file descriptor.
   Try<bool> nonblock = os::isNonblock(fd);
@@ -3522,7 +3522,7 @@ namespace internal {
 
 #if __cplusplus >= 201103L
 Future<string> _read(int fd,
-                     const std::tr1::shared_ptr<string>& buffer,
+                     const stout_shared_ptr<string>& buffer,
                      const boost::shared_array<char>& data,
                      size_t length)
 {
@@ -3538,7 +3538,7 @@ Future<string> _read(int fd,
 #else
 // Forward declataion.
 Future<string> _read(int fd,
-                     const std::tr1::shared_ptr<string>& buffer,
+                     const stout_shared_ptr<string>& buffer,
                      const boost::shared_array<char>& data,
                      size_t length);
 
@@ -3547,7 +3547,7 @@ Future<string> __read(
     const size_t& size,
     // TODO(benh): Remove 'const &' after fixing libprocess.
     int fd,
-    const std::tr1::shared_ptr<string>& buffer,
+    const stout_shared_ptr<string>& buffer,
     const boost::shared_array<char>& data,
     size_t length)
 {
@@ -3562,7 +3562,7 @@ Future<string> __read(
 
 
 Future<string> _read(int fd,
-                     const std::tr1::shared_ptr<string>& buffer,
+                     const stout_shared_ptr<string>& buffer,
                      const boost::shared_array<char>& data,
                      size_t length)
 {
@@ -3580,7 +3580,7 @@ Future<string> read(int fd)
 
   // TODO(benh): Wrap up this data as a struct, use 'Owner'.
   // TODO(bmahler): For efficiency, use a rope for the buffer.
-  std::tr1::shared_ptr<string> buffer(new string());
+  stout_shared_ptr<string> buffer(new string());
   boost::shared_array<char> data(new char[BUFFERED_READ_SIZE]);
 
   return internal::_read(fd, buffer, data, BUFFERED_READ_SIZE);
@@ -3695,7 +3695,7 @@ namespace internal {
 
 void dispatch(
     const UPID& pid,
-    const std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> >& f,
+    const stout_shared_ptr<stout_function<void(ProcessBase*)> >& f,
     const string& method)
 {
   process::initialize();

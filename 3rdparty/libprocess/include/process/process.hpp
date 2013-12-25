@@ -7,7 +7,7 @@
 #include <map>
 #include <queue>
 
-#include <tr1/functional>
+#include "stout/stdcxx/_functional.hpp"
 
 #include <process/clock.hpp>
 #include <process/event.hpp>
@@ -85,7 +85,7 @@ protected:
   // always takes precedence over delegating). A message handler is
   // any function which takes two arguments, the "from" pid and the
   // message body.
-  typedef std::tr1::function<void(const UPID&, const std::string&)>
+  typedef stout_function<void(const UPID&, const std::string&)>
   MessageHandler;
 
   // Setup a handler for a message.
@@ -105,10 +105,10 @@ protected:
     // multiple inheritance if it sees so fit (e.g., to implement
     // multiple callback interfaces).
     MessageHandler handler =
-      std::tr1::bind(method,
+      stout_bind(method,
                      dynamic_cast<T*>(this),
-                     std::tr1::placeholders::_1,
-                     std::tr1::placeholders::_2);
+                     stout_placeholders::_1,
+                     stout_placeholders::_2);
     install(name, handler);
   }
 
@@ -121,7 +121,7 @@ protected:
   // The default visit implementation for HTTP events invokes
   // installed HTTP handlers. A HTTP handler is any function which
   // takes an http::Request object and returns an http::Response.
-  typedef std::tr1::function<Future<http::Response>(const http::Request&)>
+  typedef stout_function<Future<http::Response>(const http::Request&)>
   HttpRequestHandler;
 
   // Setup a handler for an HTTP request.
@@ -140,8 +140,8 @@ protected:
     // multiple inheritance if it sees so fit (e.g., to implement
     // multiple callback interfaces).
     HttpRequestHandler handler =
-      std::tr1::bind(method, dynamic_cast<T*>(this),
-                     std::tr1::placeholders::_1);
+      stout_bind(method, dynamic_cast<T*>(this),
+                     stout_placeholders::_1);
     return route(name, help, handler);
   }
 

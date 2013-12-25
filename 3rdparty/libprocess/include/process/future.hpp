@@ -11,8 +11,8 @@
 
 #include <glog/logging.h>
 
-#include <tr1/functional>
-#include <tr1/memory> // TODO(benh): Replace shared_ptr with unique_ptr.
+#include "stout/stdcxx/_functional.hpp"
+#include "stout/stdcxx/_shared_ptr.hpp"   // TODO(benh): Replace shared_ptr with unique_ptr.
 
 #include <process/latch.hpp>
 #include <process/pid.hpp>
@@ -97,10 +97,10 @@ public:
 
   // Type of the callback functions that can get invoked when the
   // future gets set, fails, or is discarded.
-  typedef std::tr1::function<void(const T&)> ReadyCallback;
-  typedef std::tr1::function<void(const std::string&)> FailedCallback;
-  typedef std::tr1::function<void(void)> DiscardedCallback;
-  typedef std::tr1::function<void(const Future<T>&)> AnyCallback;
+  typedef stout_function<void(const T&)> ReadyCallback;
+  typedef stout_function<void(const std::string&)> FailedCallback;
+  typedef stout_function<void(void)> DiscardedCallback;
+  typedef stout_function<void(const Future<T>&)> AnyCallback;
 
   // Installs callbacks for the specified events and returns a const
   // reference to 'this' in order to easily support chaining.
@@ -113,16 +113,16 @@ public:
   // and associates the result of the callback with the future that is
   // returned to the caller (which may be of a different type).
   template <typename X>
-  Future<X> then(const std::tr1::function<Future<X>(const T&)>& f) const;
+  Future<X> then(const stout_function<Future<X>(const T&)>& f) const;
 
   template <typename X>
-  Future<X> then(const std::tr1::function<X(const T&)>& f) const;
+  Future<X> then(const stout_function<X(const T&)>& f) const;
 
-  // Helpers for the compiler to be able to forward std::tr1::bind results.
+  // Helpers for the compiler to be able to forward stout_bind results.
   template <typename X>
-  Future<X> then(const std::tr1::_Bind<X(*(void))(void)>& b) const
+  Future<X> then(const stout__Bind<X(*(void))(void)>& b) const
   {
-    return then(std::tr1::function<X(const T&)>(b));
+    return then(stout_function<X(const T&)>(b));
   }
 
 #define TEMPLATE(Z, N, DATA)                                            \
@@ -130,19 +130,19 @@ public:
             ENUM_PARAMS(N, typename P),                                 \
             ENUM_PARAMS(N, typename A)>                                 \
   Future<X> then(                                                       \
-      const std::tr1::_Bind<X(*(ENUM_PARAMS(N, A)))                     \
+      const stout__Bind<X(*(ENUM_PARAMS(N, A)))                     \
       (ENUM_PARAMS(N, P))>& b) const                                    \
   {                                                                     \
-    return then(std::tr1::function<X(const T&)>(b));                    \
+    return then(stout_function<X(const T&)>(b));                    \
   }
 
   REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
 #undef TEMPLATE
 
   template <typename X>
-  Future<X> then(const std::tr1::_Bind<Future<X>(*(void))(void)>& b) const
+  Future<X> then(const stout__Bind<Future<X>(*(void))(void)>& b) const
   {
-    return then(std::tr1::function<Future<X>(const T&)>(b));
+    return then(stout_function<Future<X>(const T&)>(b));
   }
 
 #define TEMPLATE(Z, N, DATA)                                            \
@@ -150,10 +150,10 @@ public:
             ENUM_PARAMS(N, typename P),                                 \
             ENUM_PARAMS(N, typename A)>                                 \
   Future<X> then(                                                       \
-      const std::tr1::_Bind<Future<X>(*(ENUM_PARAMS(N, A)))             \
+      const stout__Bind<Future<X>(*(ENUM_PARAMS(N, A)))             \
       (ENUM_PARAMS(N, P))>& b) const                                    \
   {                                                                     \
-    return then(std::tr1::function<Future<X>(const T&)>(b));            \
+    return then(stout_function<Future<X>(const T&)>(b));            \
   }
 
   REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
@@ -164,7 +164,7 @@ public:
   Future<X> then(const _Defer<Future<X>(*(PID<U>, X(U::*)(void)))
                  (const PID<U>&, X(U::*)(void))>& d) const
   {
-    return then(std::tr1::function<Future<X>(const T&)>(d));
+    return then(stout_function<Future<X>(const T&)>(d));
   }
 
 #define TEMPLATE(Z, N, DATA)                                            \
@@ -180,7 +180,7 @@ public:
        X(U::*)(ENUM_PARAMS(N, P)),                                      \
        ENUM_PARAMS(N, P))>& d) const                                    \
   {                                                                     \
-    return then(std::tr1::function<Future<X>(const T&)>(d));            \
+    return then(stout_function<Future<X>(const T&)>(d));            \
   }
 
   REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
@@ -190,7 +190,7 @@ public:
   Future<X> then(const _Defer<Future<X>(*(PID<U>, Future<X>(U::*)(void)))
                  (const PID<U>&, Future<X>(U::*)(void))>& d) const
   {
-    return then(std::tr1::function<Future<X>(const T&)>(d));
+    return then(stout_function<Future<X>(const T&)>(d));
   }
 
 #define TEMPLATE(Z, N, DATA)                                            \
@@ -206,7 +206,7 @@ public:
        Future<X>(U::*)(ENUM_PARAMS(N, P)),                              \
        ENUM_PARAMS(N, P))>& d) const                                    \
   {                                                                     \
-    return then(std::tr1::function<Future<X>(const T&)>(d));            \
+    return then(stout_function<Future<X>(const T&)>(d));            \
   }
 
   REPEAT_FROM_TO(1, 11, TEMPLATE, _) // Args A0 -> A9.
@@ -255,7 +255,7 @@ private:
   // failed, or discarded, in which case it returns false.
   bool fail(const std::string& _message);
 
-  std::tr1::shared_ptr<Data> data;
+  stout_shared_ptr<Data> data;
 };
 
 
@@ -272,7 +272,7 @@ public:
   Option<Future<T> > get();
 
 private:
-  std::tr1::weak_ptr<typename Future<T>::Data> data;
+  stout_weak_ptr<typename Future<T>::Data> data;
 };
 
 
@@ -409,16 +409,16 @@ bool Promise<T>::associate(const Future<T>& future)
   // In other words, calling 'set' or 'fail' on this promise will not
   // affect the result of the future that we associated. To avoid
   // cyclic dependencies, we keep a weak future in the callback.
-  f.onDiscarded(std::tr1::bind(&internal::discard<T>, WeakFuture<T>(future)));
+  f.onDiscarded(stout_bind(&internal::discard<T>, WeakFuture<T>(future)));
 
   if (!f.isPending()) {
     return false;
   }
 
   future
-    .onReady(std::tr1::bind(&Future<T>::set, f, std::tr1::placeholders::_1))
-    .onFailed(std::tr1::bind(&Future<T>::fail, f, std::tr1::placeholders::_1))
-    .onDiscarded(std::tr1::bind(&Future<T>::discard, f));
+    .onReady(stout_bind(&Future<T>::set, f, stout_placeholders::_1))
+    .onFailed(stout_bind(&Future<T>::fail, f, stout_placeholders::_1))
+    .onDiscarded(stout_bind(&Future<T>::discard, f));
 
   return true;
 }
@@ -488,7 +488,7 @@ inline void release(int* lock)
 template <typename T>
 void select(
     const Future<T>& future,
-    std::tr1::shared_ptr<Promise<Future<T > > > promise)
+    stout_shared_ptr<Promise<Future<T > > > promise)
 {
   // We never fail the future associated with our promise.
   assert(!promise->future().isFailed());
@@ -510,19 +510,19 @@ void select(
 template <typename T>
 Future<Future<T> > select(const std::set<Future<T> >& futures)
 {
-  std::tr1::shared_ptr<Promise<Future<T> > > promise(
+  stout_shared_ptr<Promise<Future<T> > > promise(
       new Promise<Future<T> >());
 
   Future<Future<T> > future = promise->future();
 
-  std::tr1::function<void(const Future<T>&)> select =
-    std::tr1::bind(&internal::select<T>,
-                   std::tr1::placeholders::_1,
+  stout_function<void(const Future<T>&)> select =
+    stout_bind(&internal::select<T>,
+                   stout_placeholders::_1,
                    promise);
 
   typename std::set<Future<T> >::iterator iterator;
   for (iterator = futures.begin(); iterator != futures.end(); ++iterator) {
-    (*iterator).onAny(std::tr1::bind(select, std::tr1::placeholders::_1));
+    (*iterator).onAny(stout_bind(select, stout_placeholders::_1));
   }
 
   return future;
@@ -878,8 +878,8 @@ const Future<T>& Future<T>::onAny(const AnyCallback& callback) const
 namespace internal {
 
 template <typename T, typename X>
-void thenf(const std::tr1::shared_ptr<Promise<X> >& promise,
-           const std::tr1::function<Future<X>(const T&)>& f,
+void thenf(const stout_shared_ptr<Promise<X> >& promise,
+           const stout_function<Future<X>(const T&)>& f,
            const Future<T>& future)
 {
   if (future.isReady()) {
@@ -893,8 +893,8 @@ void thenf(const std::tr1::shared_ptr<Promise<X> >& promise,
 
 
 template <typename T, typename X>
-void then(const std::tr1::shared_ptr<Promise<X> >& promise,
-          const std::tr1::function<X(const T&)>& f,
+void then(const stout_shared_ptr<Promise<X> >& promise,
+          const stout_function<X(const T&)>& f,
           const Future<T>& future)
 {
   if (future.isReady()) {
@@ -911,22 +911,22 @@ void then(const std::tr1::shared_ptr<Promise<X> >& promise,
 
 template <typename T>
 template <typename X>
-Future<X> Future<T>::then(const std::tr1::function<Future<X>(const T&)>& f) const
+Future<X> Future<T>::then(const stout_function<Future<X>(const T&)>& f) const
 {
-  std::tr1::shared_ptr<Promise<X> > promise(new Promise<X>());
+  stout_shared_ptr<Promise<X> > promise(new Promise<X>());
 
-  std::tr1::function<void(const Future<T>&)> thenf =
-    std::tr1::bind(&internal::thenf<T, X>,
+  stout_function<void(const Future<T>&)> thenf =
+    stout_bind(&internal::thenf<T, X>,
                    promise,
                    f,
-                   std::tr1::placeholders::_1);
+                   stout_placeholders::_1);
 
   onAny(thenf);
 
   // Propagate discarding up the chain. To avoid cyclic dependencies,
   // we keep a weak future in the callback.
   promise->future().onDiscarded(
-      std::tr1::bind(&internal::discard<T>, WeakFuture<T>(*this)));
+      stout_bind(&internal::discard<T>, WeakFuture<T>(*this)));
 
   return promise->future();
 }
@@ -934,22 +934,22 @@ Future<X> Future<T>::then(const std::tr1::function<Future<X>(const T&)>& f) cons
 
 template <typename T>
 template <typename X>
-Future<X> Future<T>::then(const std::tr1::function<X(const T&)>& f) const
+Future<X> Future<T>::then(const stout_function<X(const T&)>& f) const
 {
-  std::tr1::shared_ptr<Promise<X> > promise(new Promise<X>());
+  stout_shared_ptr<Promise<X> > promise(new Promise<X>());
 
-  std::tr1::function<void(const Future<T>&)> then =
-    std::tr1::bind(&internal::then<T, X>,
+  stout_function<void(const Future<T>&)> then =
+    stout_bind(&internal::then<T, X>,
                    promise,
                    f,
-                   std::tr1::placeholders::_1);
+                   stout_placeholders::_1);
 
   onAny(then);
 
   // Propagate discarding up the chain. To avoid cyclic dependencies,
   // we keep a weak future in the callback.
   promise->future().onDiscarded(
-      std::tr1::bind(&internal::discard<T>, WeakFuture<T>(*this)));
+      stout_bind(&internal::discard<T>, WeakFuture<T>(*this)));
 
   return promise->future();
 }
@@ -963,7 +963,7 @@ auto Future<T>::then(F f) const
 {
   typedef typename internal::unwrap<decltype(f(T()))>::Type X;
 
-  std::tr1::shared_ptr<Promise<X>> promise(new Promise<X>());
+  stout_shared_ptr<Promise<X>> promise(new Promise<X>());
 
   onAny([=] (const Future<T>& future) {
     if (future.isReady()) {

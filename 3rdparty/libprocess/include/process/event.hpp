@@ -1,8 +1,8 @@
 #ifndef __PROCESS_EVENT_HPP__
 #define __PROCESS_EVENT_HPP__
 
-#include <tr1/functional>
-#include <tr1/memory> // TODO(benh): Replace all shared_ptr with unique_ptr.
+#include "stout/stdcxx/_functional.hpp"
+#include "stout/stdcxx/_shared_ptr.hpp" // TODO(benh): Replace all shared_ptr with unique_ptr.
 
 #include <process/future.hpp>
 #include <process/http.hpp>
@@ -124,7 +124,7 @@ struct DispatchEvent : Event
 {
   DispatchEvent(
       const UPID& _pid,
-      const std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> >& _f,
+      const stout_shared_ptr<stout_function<void(ProcessBase*)> >& _f,
       const std::string& _method)
     : pid(_pid),
       f(_f),
@@ -140,7 +140,7 @@ struct DispatchEvent : Event
   const UPID pid;
 
   // Function to get invoked as a result of this dispatch event.
-  const std::tr1::shared_ptr<std::tr1::function<void(ProcessBase*)> > f;
+  const stout_shared_ptr<stout_function<void(ProcessBase*)> > f;
 
   // Canonical "byte" representation of a pointer to a member function
   // (i.e., method) encapsulated in the above function (or empty if

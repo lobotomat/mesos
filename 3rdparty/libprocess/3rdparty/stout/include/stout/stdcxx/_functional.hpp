@@ -1,27 +1,28 @@
 #ifndef __STOUT_FUNCTIONAL_HPP__ 
 #define __STOUT_FUNCTIONAL_HPP__
 
-#ifdef HAVE_CONFIG_H
-	#include "config.h" 
-#endif
+#include "config.hpp" 
 
 #ifdef HAVE_CXX11 
 	#include <functional> 
-	#define _function std::function
-	#define _bind std::bind
-	#define _placeholders std::placeholders
+	#define stout_function std::function
+	#define stout_bind std::bind
+	#define stout__Bind std::_Bind
+	#define stout_placeholders std::placeholders
 #elif defined(HAVE_CXXTR1) 
 	#include <tr1/functional> 
-	#define _function std::tr1::function
-	#define _bind std::tr1::bind
-	#define _placeholders std::tr1::placeholders
+	#define stout_function std::tr1::function
+	#define stout_bind std::tr1::bind
+	#define stout__Bind std::tr1::_Bind
+	#define stout_placeholders std::tr1::placeholders
 #elif defined(HAVE_BOOST)
 	#include "boost/functional.hpp"
 	#include "boost/function.hpp"
 	#include "boost/bind.hpp"
-	#define _function boost::function
-	#define _bind boost::bind
-	#define _placeholders boost::placeholders
+	#define stout_function boost::function
+	#define stout_bind boost::bind
+	#define stout__Bind boost::_Bind
+	#define stout_placeholders boost::placeholders
 #else
     #error needs either C++11, C++TR1 or BOOST enabled 
 #endif 

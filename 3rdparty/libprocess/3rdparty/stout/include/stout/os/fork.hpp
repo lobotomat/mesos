@@ -12,7 +12,7 @@
 #include <set>
 #include <string>
 
-#include "stdcxx/_shared_ptr.hpp"
+#include "stout/stdcxx/_shared_ptr.hpp"
 
 #include <stout/error.hpp>
 #include <stout/exit.hpp>
@@ -220,7 +220,7 @@ private:
       bool set; // Has this been initialized?
     };
 
-    _shared_ptr<Memory> memory;
+    stout_shared_ptr<Memory> memory;
     std::vector<Tree> children;
   };
 
@@ -297,7 +297,7 @@ private:
     SharedMemoryDeleter deleter(fd);
 
     Tree tree;
-    tree.memory = _shared_ptr<Tree::Memory>(
+    tree.memory = stout_shared_ptr<Tree::Memory>(
         (Tree::Memory*) memory, deleter);
     tree.memory->set = false;
 

@@ -18,8 +18,8 @@ struct Flag
   std::string name;
   std::string help;
   bool boolean;
-  _function<Try<Nothing>(FlagsBase*, const std::string&)> loader;
-  _function<Option<std::string>(const FlagsBase&)> stringify;
+  stout_function<Try<Nothing>(FlagsBase*, const std::string&)> loader;
+  stout_function<Option<std::string>(const FlagsBase&)> stringify;
 };
 
 } // namespace flags {
