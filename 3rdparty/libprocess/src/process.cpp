@@ -3531,7 +3531,7 @@ Future<string> _read(int fd,
       if (size == 0) { // EOF.
         return string(*buffer);
       }
-      buffer->append(data, size);
+      buffer->append(data.get(), size);
       return _read(fd, buffer, data, length);
     });
 }
