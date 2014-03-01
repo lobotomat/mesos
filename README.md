@@ -1,3 +1,7 @@
+# Mesos Xcode Project
+
+For fun and profit!
+
 # About Apache Mesos
 
 Apache Mesos is a cluster manager that provides efficient resource isolation 
