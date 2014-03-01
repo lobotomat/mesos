@@ -4,7 +4,7 @@ For fun and profit!
 
 ## Preconditions
 
-You still need to full build-setup ready that is used for a "regular" Mesos build, without the Xcode IDE. For details on these first steps, please consult docs/getting-started.md.
+You still need the full build-setup that is used for a "regular" Mesos build, without the Xcode IDE - but only once. For details on these first steps, please consult docs/getting-started.md.
 
 Your first build has to be done using the commandline make as that will trigger further configuration,extraction and patching of the 3rdparty dependencies (e.g. libev etc.).
 
@@ -61,6 +61,13 @@ This Xcode build configuration, for reasons of simplification and speedup, uses 
 
 You may now continue editing, running, debugging and maybe even profiling (Instruments, **yes**). Enjoy!
 
+
+# Questions / Problems
+
+Please use the [github issue tracker](https://github.com/lobotomat/mesos/issues) for any questions or problems you have with this setup. Do not ask any questions about this within the official Mesos communication channels as the project is not supporting this fork.
+
+
+---
 
 # About Apache Mesos
 
