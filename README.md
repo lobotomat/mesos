@@ -52,9 +52,9 @@ This Xcode build configuration, for reasons of simplification and speedup, uses 
 
 	Now select the mesos-all target:
 
-	![Select Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/xcode-select-scheme.png)
+	![Select Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/xcode-select-scheme.png?raw=true)
 
-	![All Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/xcode-all-scheme.png)
+	![All Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/xcode-all-scheme.png?raw=true)
 
 	The above scheme builds libprocess, libmesos_no_3rdparty as well as all mesos runnables.
 
