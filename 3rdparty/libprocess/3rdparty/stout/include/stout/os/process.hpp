@@ -92,6 +92,25 @@ public:
     return None();
   }
 
+  int liveProcesses() const
+  {
+    int count = 0;
+
+    // Using kill to check for precense of given process:
+    //   "If sig is 0, then no signal is sent, but error checking is
+    //    still performed; this can be used to check for the existence
+    //    of a process ID or process group ID."
+    if (kill(process.pid, 0) == 0) {
+      count++;
+    }
+
+    foreach (const ProcessTree& tree, children) {
+      count += tree.liveProcesses();
+    }
+
+    return count;
+  }
+
   // Checks if the specified pid is contained in this process tree.
   bool contains(pid_t pid) const
   {
