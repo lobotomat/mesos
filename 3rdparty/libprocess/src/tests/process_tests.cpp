@@ -32,6 +32,7 @@
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
 #include <stout/stopwatch.hpp>
+#include <stout/tuple.hpp>
 
 #include "encoder.hpp"
 
@@ -1033,7 +1034,7 @@ TEST(Process, collect)
 }
 
 
-TEST(Process, await)
+TEST(Process, await1)
 {
   ASSERT_TRUE(GTEST_IS_THREADSAFE);
 
@@ -1073,6 +1074,88 @@ TEST(Process, await)
     ASSERT_TRUE(result.isReady());
     ASSERT_EQ(i++, result.get());
   }
+}
+
+
+TEST(Process, await2)
+{
+  // Test Promise::set.
+  Promise<int> promise1;
+
+  Future<Future<int> > future1 = await(promise1.future());
+
+  ASSERT_TRUE(future1.isPending());
+
+  promise1.set(42);
+
+  AWAIT_READY(future1);
+
+  ASSERT_TRUE(future1.get().isReady());
+  ASSERT_EQ(42, future1.get().get());
+
+  // Test Promise::fail.
+  Promise<int> promise2;
+  Future<Future<int> > future2 = await(promise2.future());
+
+  ASSERT_TRUE(future2.isPending());
+
+  promise2.fail("failure message");
+
+  AWAIT_READY(future2);
+
+  ASSERT_TRUE(future2.get().isFailed());
+}
+
+
+TEST(Process, await3)
+{
+  Promise<int> promise1;
+  Promise<bool> promise2;
+
+  Future<tuples::tuple<Future<int>, Future<bool> > > future =
+    await(promise1.future(), promise2.future());
+  ASSERT_TRUE(future.isPending());
+
+  promise1.set(42);
+
+  ASSERT_TRUE(future.isPending());
+
+  promise2.fail("failure message");
+
+  AWAIT_READY(future);
+
+  tuples::tuple<Future<int>, Future<bool> > futures = future.get();
+
+  AWAIT_READY(tuples::get<0>(futures));
+  ASSERT_EQ(42, tuples::get<0>(futures).get());
+
+  AWAIT_FAILED(tuples::get<1>(futures));
+}
+
+
+TEST(Process, await4)
+{
+  Promise<int> promise1;
+  Promise<bool> promise2;
+
+  Future<tuples::tuple<Future<int>, Future<bool> > > future =
+    await(promise1.future(), promise2.future());
+  ASSERT_TRUE(future.isPending());
+
+  promise1.set(42);
+
+  ASSERT_TRUE(future.isPending());
+
+  promise2.discard();
+
+  AWAIT_READY(future);
+
+  tuples::tuple<Future<int>, Future<bool> > futures = future.get();
+
+  AWAIT_READY(tuples::get<0>(futures));
+  ASSERT_EQ(42, tuples::get<0>(futures).get());
+
+  AWAIT_DISCARDED(tuples::get<1>(futures));
 }
 
 

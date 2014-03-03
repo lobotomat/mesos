@@ -8,12 +8,14 @@
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/future.hpp>
+#include <process/owned.hpp>
 #include <process/process.hpp>
 #include <process/timeout.hpp>
 
 #include <stout/lambda.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
+#include <stout/tuple.hpp>
 
 // TODO(bmahler): Move these into a futures.hpp header to group Future
 // related utilities.
@@ -35,6 +37,24 @@ Future<std::list<T> > collect(
 template <typename T>
 Future<std::list<Future<T> > > await(
     std::list<Future<T> >& futures,
+    const Option<Timeout>& timeout = None());
+
+
+// Waits for the specified future and returns a pending, wrapping
+// future. On timeout, the result will be a failure.
+template <typename T>
+Future<Future<T> > await(
+    const Future<T>& future,
+    const Option<Timeout>& timeout = None());
+
+
+// Waits on each future specified and returns the wrapping future
+// typed of a tuple of futures. On timeout, the result will be a
+// failure.
+template <typename T1, typename T2>
+Future<tuples::tuple<Future<T1>, Future<T2> > > await(
+    const Future<T1>& future1,
+    const Future<T2>& future2,
     const Option<Timeout>& timeout = None());
 
 
@@ -196,6 +216,34 @@ private:
   size_t ready;
 };
 
+
+#if __cplusplus < 201103L
+
+template <typename T>
+void _await(
+    const Future<T>& result,
+    Owned<Promise<Nothing> > promise)
+{
+  promise->set(Nothing());
+}
+
+
+template <typename T>
+Future<Future<T> > _then(Future<T> future)
+{
+  return future;
+}
+
+
+template <typename T1, typename T2>
+Future<tuples::tuple<Future<T1>, Future<T2> > > _then(
+  tuples::tuple<Future<T1>, Future<T2> > future)
+{
+  return future;
+}
+
+#endif // __cplusplus < 201103L
+
 } // namespace internal {
 
 
@@ -230,6 +278,93 @@ inline Future<std::list<Future<T> > > await(
   spawn(new internal::AwaitProcess<T>(futures, timeout, promise), true);
   return future;
 }
+
+
+#if __cplusplus >= 201103L
+
+template <typename T>
+Future<Future<T> > await(
+    const Future<T>& future,
+    const Option<Timeout>& timeout)
+{
+  Owned<Promise<Nothing> > promise(new Promise<Nothing>());
+
+  future.onAny([=] () { promise->set(Nothing()); });
+
+  std::list<Future<Nothing> > futures;
+  futures.push_back(promise->future());
+
+  return await(futures, timeout)
+    .then([=] () -> Future<Future<T> > { return future; });
+}
+
+
+template <typename T1, typename T2>
+Future<tuples::tuple<Future<T1>, Future<T2> > > await(
+    const Future<T1>& future1,
+    const Future<T2>& future2,
+    const Option<Timeout>& timeout)
+{
+  Owned<Promise<Nothing> > promise1(new Promise<Nothing>());
+
+  future1.onAny([=] () { promise1->set(Nothing()); });
+
+  Owned<Promise<Nothing> > promise2(new Promise<Nothing>());
+
+  future2.onAny([=] () { promise2->set(Nothing()); });
+
+  std::list<Future<Nothing> > futures;
+  futures.push_back(promise1->future());
+  futures.push_back(promise2->future());
+
+  return await(futures, timeout)
+    .then([=] () { return tuples::make_tuple(future1, future2); });
+}
+
+#else // __cplusplus >= 201103L
+
+template <typename T>
+Future<Future<T> > await(
+    const Future<T>& future,
+    const Option<Timeout>& timeout)
+{
+  Owned<Promise<Nothing> > promise(new Promise<Nothing>());
+
+  future.onAny(lambda::bind(internal::_await<T>, lambda::_1, promise));
+
+  std::list<Future<Nothing> > futures;
+  futures.push_back(promise->future());
+
+  return await(futures, timeout)
+    .then(lambda::bind(internal::_then<T>, future));
+}
+
+
+template <typename T1, typename T2>
+Future<tuples::tuple<Future<T1>, Future<T2> > > await(
+    const Future<T1>& future1,
+    const Future<T2>& future2,
+    const Option<Timeout>& timeout)
+{
+  Owned<Promise<Nothing> > promise1(new Promise<Nothing>());
+
+  future1.onAny(lambda::bind(internal::_await<T1>, lambda::_1, promise1));
+
+  Owned<Promise<Nothing> > promise2(new Promise<Nothing>());
+
+  future2.onAny(lambda::bind(internal::_await<T2>, lambda::_1, promise2));
+
+  std::list<Future<Nothing> > futures;
+  futures.push_back(promise1->future());
+  futures.push_back(promise2->future());
+
+  return await(futures, timeout)
+    .then(lambda::bind(
+      internal::_then<T1, T2>,
+      tuples::make_tuple(future1, future2)));
+}
+
+#endif // __cplusplus >= 201103L
 
 } // namespace process {
 
