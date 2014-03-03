@@ -38,6 +38,21 @@ inline std::set<pid_t> children(pid_t, const std::list<Process>&, bool);
 inline Option<Process> process(pid_t, const std::list<Process>&);
 
 
+// Sends a signal to the specified process tree.
+// Signal is sent to all pids in the process tree regardless of
+// their current state or presence.
+inline void killtree(
+    const ProcessTree& tree,
+    int signal)
+{
+  kill(tree, signal);
+
+  foreach (const ProcessTree& child, tree.children) {
+    killtree(child, signal);
+  }
+}
+
+
 // Sends a signal to a process tree rooted at the specified pid.
 // If groups is true, this also sends the signal to all encountered
 // process groups.
@@ -164,9 +179,11 @@ inline Try<std::list<ProcessTree> > killtree(
     }
   }
 
+  Try<std::list<ProcessTree> > trees = pstrees(visited.pids, visited.processes);
+
   // Now that all processes are stopped, we send the signal.
-  foreach (pid_t pid, visited.pids) {
-    kill(pid, signal);
+  foreach (const ProcessTree& tree, trees.get()) {
+    killtree(tree, signal);
   }
 
   // There is a concern that even though some process is stopped,
@@ -188,12 +205,12 @@ inline Try<std::list<ProcessTree> > killtree(
 
   // Try and continue the processes in case the signal is
   // non-terminating but doesn't continue the process.
-  foreach (pid_t pid, visited.pids) {
-    kill(pid, SIGCONT);
+  foreach (const ProcessTree& tree, trees.get()) {
+    killtree(tree, SIGCONT);
   }
 
   // Return the process trees representing the visited pids.
-  return pstrees(visited.pids, visited.processes);
+  return trees;
 }
 
 } // namespace os {
