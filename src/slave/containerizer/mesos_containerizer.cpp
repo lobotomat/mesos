@@ -79,9 +79,10 @@ Future<Nothing> MesosContainerizer::recover(const Option<state::SlaveState>& sta
 }
 
 
-Future<Nothing> MesosContainerizer::launch(
+Future<ExecutorInfo> MesosContainerizer::launch(
     const ContainerID& containerId,
-    const ExecutorInfo& executorInfo,
+    const TaskInfo& task,
+    const FrameworkID& frameworkId,
     const string& directory,
     const Option<string>& user,
     const SlaveID& slaveId,
@@ -91,7 +92,8 @@ Future<Nothing> MesosContainerizer::launch(
   return dispatch(process,
                   &MesosContainerizerProcess::launch,
                   containerId,
-                  executorInfo,
+                  task,
+                  frameworkId,
                   directory,
                   user,
                   slaveId,
@@ -330,6 +332,64 @@ int execute(
 }
 
 
+ExecutorInfo executorInfo(
+    const Flags& flags,
+    const TaskInfo& task,
+    const FrameworkID& frameworkId)
+{
+  CHECK_NE(task.has_executor(), task.has_command())
+    << "Task " << task.task_id()
+    << " should have either CommandInfo or ExecutorInfo set but not both";
+
+  if (!task.has_command()) {
+      return task.executor();
+  }
+
+  ExecutorInfo executor;
+
+  // Command executors share the same id as the task.
+  executor.mutable_executor_id()->set_value(task.task_id().value());
+
+  executor.mutable_framework_id()->CopyFrom(frameworkId);
+
+  // Prepare an executor name which includes information on the
+  // command being launched.
+  string name =
+    "(Task: " + task.task_id().value() + ") " + "(Command: sh -c '";
+
+  if (task.command().value().length() > 15) {
+    name += task.command().value().substr(0, 12) + "...')";
+  } else {
+    name += task.command().value() + "')";
+  }
+
+  executor.set_name("Command Executor " + name);
+  executor.set_source(task.task_id().value());
+
+  // Copy the CommandInfo to get the URIs and environment, but
+  // update it to invoke 'mesos-executor' (unless we couldn't
+  // resolve 'mesos-executor' via 'realpath', in which case just
+  // echo the error and exit).
+  executor.mutable_command()->MergeFrom(task.command());
+
+  Result<string> path = os::realpath(
+      path::join(flags.launcher_dir, "mesos-executor"));
+
+  if (path.isSome()) {
+    executor.mutable_command()->set_value(path.get());
+  } else {
+    executor.mutable_command()->set_value(
+        "echo '" +
+        (path.isError()
+         ? path.error()
+         : "No such file or directory") +
+        "'; exit 1");
+  }
+
+  return executor;
+}
+
+
 // Launching an executor involves the following steps:
 // 1. Prepare the container. First call prepare on each isolator and then
 //    fetch the executor into the container sandbox.
@@ -338,15 +398,19 @@ int execute(
 // 3. Isolate the executor. Call isolate with the pid for each isolator.
 // 4. Exec the executor. The forked child is signalled to continue and exec the
 //    executor.
-Future<Nothing> MesosContainerizerProcess::launch(
+Future<ExecutorInfo> MesosContainerizerProcess::launch(
     const ContainerID& containerId,
-    const ExecutorInfo& executorInfo,
+    const TaskInfo& task,
+    const FrameworkID& frameworkId,
     const string& directory,
     const Option<string>& user,
     const SlaveID& slaveId,
     const PID<Slave>& slavePid,
     bool checkpoint)
 {
+  ExecutorInfo executor = executorInfo(flags, task, frameworkId);
+  executor.mutable_resources()->MergeFrom(task.resources());
+
   if (promises.contains(containerId)) {
     LOG(ERROR) << "Cannot start already running container '"
                << containerId << "'";
@@ -358,15 +422,15 @@ Future<Nothing> MesosContainerizerProcess::launch(
   promises.put(containerId, promise);
 
   // Store the resources for usage().
-  resources.put(containerId, executorInfo.resources());
+  resources.put(containerId, executor.resources());
 
   LOG(INFO) << "Starting container '" << containerId
-            << "' for executor '" << executorInfo.executor_id()
-            << "' of framework '" << executorInfo.framework_id() << "'";
+            << "' for executor '" << executor.executor_id()
+            << "' of framework '" << executor.framework_id() << "'";
 
   // Prepare additional environment variables for the executor.
   const map<string, string>& env = executorEnvironment(
-      executorInfo,
+      executor,
       directory,
       slaveId,
       slavePid,
@@ -385,7 +449,7 @@ Future<Nothing> MesosContainerizerProcess::launch(
   // Prepare a function for the forked child to exec() the executor.
   lambda::function<int()> inChild = lambda::bind(
       &execute,
-      executorInfo.command(),
+      executor.command(),
       directory,
       user,
       env,
@@ -393,11 +457,11 @@ Future<Nothing> MesosContainerizerProcess::launch(
       pipes[0],
       pipes[1]);
 
-  return prepare(containerId, executorInfo, directory, user)
+  return prepare(containerId, executor, directory, user)
     .then(defer(self(),
                 &Self::fork,
                 containerId,
-                executorInfo,
+                executor,
                 inChild,
                 slaveId,
                 checkpoint,
@@ -408,6 +472,7 @@ Future<Nothing> MesosContainerizerProcess::launch(
                 lambda::_1))
     .then(defer(self(),
                 &Self::exec,
+                executor,
                 containerId,
                 pipes[1]))
     .onAny(lambda::bind(&os::close, pipes[0]))
@@ -658,7 +723,8 @@ Future<Nothing> MesosContainerizerProcess::_isolate(
 }
 
 
-Future<Nothing> MesosContainerizerProcess::exec(
+Future<ExecutorInfo> MesosContainerizerProcess::exec(
+    const ExecutorInfo& executorInfo,
     const ContainerID& containerId,
     int pipeWrite)
 {
@@ -675,7 +741,7 @@ Future<Nothing> MesosContainerizerProcess::exec(
                    string(strerror(errno)));
   }
 
-  return Nothing();
+  return executorInfo;
 }
 
 

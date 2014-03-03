@@ -69,15 +69,18 @@ TestContainerizer::~TestContainerizer()
 }
 
 
-Future<Nothing> TestContainerizer::launch(
+Future<ExecutorInfo> TestContainerizer::launch(
     const ContainerID& containerId,
-    const ExecutorInfo& executorInfo,
+    const TaskInfo& task,
+    const FrameworkID& frameworkId,
     const string& directory,
     const Option<string>& user,
     const SlaveID& slaveId,
     const PID<slave::Slave>& slavePid,
     bool checkpoint)
 {
+  const ExecutorInfo& executorInfo = task.executor();
+
   CHECK(!drivers.contains(containerId))
     << "Failed to launch executor " << executorInfo.executor_id()
     << " of framework " << executorInfo.framework_id()
@@ -133,7 +136,7 @@ Future<Nothing> TestContainerizer::launch(
       new Promise<slave::Containerizer::Termination>());
   promises[containerId] = promise;
 
-  return Nothing();
+  return executorInfo;
 }
 
 

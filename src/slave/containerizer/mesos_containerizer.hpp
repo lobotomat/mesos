@@ -51,9 +51,10 @@ public:
   virtual process::Future<Nothing> recover(
       const Option<state::SlaveState>& state);
 
-  virtual process::Future<Nothing> launch(
+  virtual process::Future<ExecutorInfo> launch(
       const ContainerID& containerId,
-      const ExecutorInfo& executorInfo,
+      const TaskInfo& task,
+      const FrameworkID& frameworkId,
       const std::string& directory,
       const Option<std::string>& user,
       const SlaveID& slaveId,
@@ -95,9 +96,10 @@ public:
   process::Future<Nothing> recover(
       const Option<state::SlaveState>& state);
 
-  process::Future<Nothing> launch(
+  process::Future<ExecutorInfo> launch(
       const ContainerID& containerId,
-      const ExecutorInfo& executorInfo,
+      const TaskInfo& task,
+      const FrameworkID& frameworkId,
       const std::string& directory,
       const Option<std::string>& user,
       const SlaveID& slaveId,
@@ -148,7 +150,8 @@ private:
       const ContainerID& containerId,
       const std::list<Option<CommandInfo> >& commands);
 
-  process::Future<Nothing> exec(
+  process::Future<ExecutorInfo> exec(
+      const ExecutorInfo& executorInfo,
       const ContainerID& containerId,
       int pipeWrite);
 

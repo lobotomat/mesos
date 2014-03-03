@@ -107,9 +107,22 @@ public:
       const std::string& pid,
       const TaskInfo& task);
 
+  void __runTask(
+      const process::Future<bool>& future,
+      const FrameworkInfo& frameworkInfo,
+      const FrameworkID& frameworkId,
+      const std::string& pid,
+      const TaskInfo& task);
+
   process::Future<bool> unschedule(const std::string& path);
 
   void killTask(
+      const process::UPID& from,
+      const FrameworkID& frameworkId,
+      const TaskID& taskId);
+
+  void _killTask(
+      const process::Future<bool>& future,
       const process::UPID& from,
       const FrameworkID& frameworkId,
       const TaskID& taskId);
@@ -131,11 +144,25 @@ public:
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
 
+  void _registerExecutor(
+      const process::Future<bool>& future,
+      const process::UPID& from,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId);
+
   // Called when an executor re-registers with a recovering slave.
   // 'tasks' : Unacknowledged tasks (i.e., tasks that the executor
   //           driver never received an ACK for.)
   // 'updates' : Unacknowledged updates.
   void reregisterExecutor(
+      const process::UPID& from,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const std::vector<TaskInfo>& tasks,
+      const std::vector<StatusUpdate>& updates);
+
+  void _reregisterExecutor(
+      const process::Future<bool>& future,
       const process::UPID& from,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
@@ -177,16 +204,23 @@ public:
       const FrameworkID& frameworkId,
       const UUID& uuid);
 
-  void executorStarted(
+  bool executorStarted(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
       const ContainerID& containerId,
-      const process::Future<Nothing>& future);
+      const process::Future<ExecutorInfo>& future);
 
   void executorTerminated(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
       const process::Future<Containerizer::Termination>& termination);
+
+  void _executorTerminated(
+      const process::Future<bool>& future,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const process::Future<Containerizer::Termination>& termination,
+      int status);
 
   // NOTE: Pulled these to public to make it visible for testing.
   // TODO(vinod): Make tests friends to this class instead.
@@ -230,12 +264,6 @@ public:
 
   // Helper routine to lookup a framework.
   Framework* getFramework(const FrameworkID& frameworkId);
-
-  // Returns an ExecutorInfo for a TaskInfo (possibly
-  // constructing one if the task has a CommandInfo).
-  ExecutorInfo getExecutorInfo(
-      const FrameworkID& frameworkId,
-      const TaskInfo& task);
 
   // Handle the second phase of shutting down an executor for those
   // executors that have not properly shutdown within a timeout.
@@ -379,6 +407,15 @@ struct Executor
       const std::string& directory,
       bool checkpoint);
 
+  Executor(
+      Slave* slave,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const ContainerID& containerId,
+      const std::string& directory,
+      bool checkpoint,
+      bool commandExecutor);
+
   ~Executor();
 
   Task* addTask(const TaskInfo& task);
@@ -391,7 +428,14 @@ struct Executor
   // Returns true if there are any queued/launched/terminated tasks.
   bool incompleteTasks();
 
+  void finalize(const ExecutorInfo& info);
+
+  static ExecutorID getId(const TaskInfo& task);
+
+  static Try<Nothing> isValid(const ExecutorInfo& info, const TaskInfo& task);
+
   enum State {
+    LAUNCHING,    // Executor is being launched by containerizer.
     REGISTERING,  // Executor is launched but not (re-)registered yet.
     RUNNING,      // Executor has (re-)registered.
     TERMINATING,  // Executor is being shutdown/killed.
@@ -404,7 +448,7 @@ struct Executor
   Slave* slave;
 
   const ExecutorID id;
-  const ExecutorInfo info;
+  Option<ExecutorInfo> info;
 
   const FrameworkID frameworkId;
 
@@ -414,7 +458,7 @@ struct Executor
 
   const bool checkpoint;
 
-  const bool commandExecutor;
+  bool commandExecutor;
 
   process::UPID pid;
 
@@ -437,6 +481,8 @@ struct Executor
   // attempts to do some memset's which are unsafe).
   boost::circular_buffer<memory::shared_ptr<Task> > completedTasks;
 
+  process::Future<bool> future;
+
 private:
   Executor(const Executor&);              // No copying.
   Executor& operator = (const Executor&); // No assigning.
@@ -454,9 +500,8 @@ struct Framework
 
   ~Framework();
 
-  Executor* launchExecutor(
-      const ExecutorInfo& executorInfo,
-      const TaskInfo& taskInfo);
+  Executor* launch(const TaskInfo& task);
+
   void destroyExecutor(const ExecutorID& executorId);
   Executor* getExecutor(const ExecutorID& executorId);
   Executor* getExecutor(const TaskID& taskId);

@@ -89,9 +89,10 @@ public:
       const Option<state::SlaveState>& state) = 0;
 
   // Launch a containerized executor.
-  virtual process::Future<Nothing> launch(
+  virtual process::Future<ExecutorInfo> launch(
       const ContainerID& containerId,
-      const ExecutorInfo& executorInfo,
+      const TaskInfo& task,
+      const FrameworkID& frameworkId,
       const std::string& directory,
       const Option<std::string>& user,
       const SlaveID& slaveId,
