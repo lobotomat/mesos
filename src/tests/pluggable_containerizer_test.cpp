@@ -232,7 +232,6 @@ TEST_F(PluggableContainerizerTest, Launch)
 
   EXPECT_GE(statistics.cpus_user_time_secs(), 0.120);
   EXPECT_GE(statistics.cpus_system_time_secs(), 0.05);
-  // Deal with command executor over-commit.
   EXPECT_EQ(statistics.cpus_limit(), cpus.get());
   EXPECT_GE(statistics.mem_rss_bytes(), 1024u);
   EXPECT_EQ(statistics.mem_limit_bytes(), mem.get().bytes());

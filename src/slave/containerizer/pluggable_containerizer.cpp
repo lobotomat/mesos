@@ -280,7 +280,8 @@ Future<ExecutorInfo> PluggableContainerizerProcess::launch(
       command->mutable_container()->set_image(flags.default_container.get());
     } else {
       LOG(INFO) << "No container specified in task and no default given. "
-                << "The external containerizer will have to fill in defaults.";
+                << "The pluggable containerizer will have to fill in "
+                << "defaults.";
     }
   }
 
@@ -312,26 +313,26 @@ Future<ExecutorInfo> PluggableContainerizerProcess::launch(
   // Read from the result-pipe and invoke callback when reaching EOF.
   read(resultPipe)
     .onAny(defer(
-      PID<PluggableContainerizerProcess>(this),
-      &PluggableContainerizerProcess::_launch,
-      containerId,
-      invoked.get(),
-      frameworkId,
-      executor,
-      slaveId,
-      checkpoint,
-      lambda::_1,
-      promise))
+        PID<PluggableContainerizerProcess>(this),
+        &PluggableContainerizerProcess::_launch,
+        containerId,
+        invoked.get(),
+        frameworkId,
+        executor,
+        slaveId,
+        checkpoint,
+        lambda::_1,
+        promise))
     .then(lambda::bind(os::close, resultPipe));
 
   // Observe the process status and install a callback for status
   // changes.
   process::reap(invoked.get())
     .onAny(defer(
-      PID<PluggableContainerizerProcess>(this),
-      &PluggableContainerizerProcess::reaped,
-      containerId,
-      lambda::_1));
+        PID<PluggableContainerizerProcess>(this),
+        &PluggableContainerizerProcess::reaped,
+        containerId,
+        lambda::_1));
 
   return promise->future();
 }
@@ -503,7 +504,7 @@ void PluggableContainerizerProcess::_launch(
   }
 
   if (!future.isReady()) {
-    promise->fail("Could not receive any result from external containerizer");
+    promise->fail("Could not receive any result from pluggable containerizer");
     terminate(containerId);
     return;
   }
@@ -523,12 +524,12 @@ void PluggableContainerizerProcess::_launch(
     // For the specific case of a launch however, there can not be an
     // internal implementation for a pluggable containerizer, hence
     // we need to fail or even abort at this point.
-    promise->fail("External containerizer does not support launch");
+    promise->fail("Pluggable containerizer does not support launch");
     terminate(containerId);
     return;
   }
 
-  VLOG(1) << "Launch supported by external containerizer";
+  VLOG(1) << "Launch supported by pluggable containerizer";
 
   PluggableStatus ps;
   if (!ps.ParseFromString(result)) {
@@ -552,7 +553,7 @@ void PluggableContainerizerProcess::_launch(
               << pid << " to '" << path <<  "'";
 
     Try<Nothing> checkpointed =
-      slave::state::checkpoint(path, stringify(pid));
+        slave::state::checkpoint(path, stringify(pid));
 
     if (checkpointed.isError()) {
       promise->fail("Failed to checkpoint container '" + containerId.value()
@@ -594,7 +595,7 @@ void PluggableContainerizerProcess::_wait(
   }
 
   if (support.get()) {
-    VLOG(1) << "Wait supported by external containerizer";
+    VLOG(1) << "Wait supported by pluggable containerizer";
 
     PluggableTermination pt;
     if (!pt.ParseFromString(result)) {
@@ -606,7 +607,7 @@ void PluggableContainerizerProcess::_wait(
     VLOG(2) << "Wait result: '" << pt.DebugString() << "'";
 
     // Satisfy the promise with the termination information we got
-    // from the external containerizer
+    // from the pluggable containerizer
     Containerizer::Termination termination(
         pt.status(),
         pt.killed(),
@@ -640,7 +641,7 @@ void PluggableContainerizerProcess::_update(
   }
 
   if (support.get()) {
-    VLOG(1) << "Update supported by external containerizer";
+    VLOG(1) << "Update supported by pluggable containerizer";
 
     PluggableStatus ps;
     if (!ps.ParseFromString(result)) {
@@ -658,7 +659,7 @@ void PluggableContainerizerProcess::_update(
   }
 
   VLOG(1) << "Update requests default implementation";
-  LOG(INFO) << "Update ignoring updates as the external containerizer does"
+  LOG(INFO) << "Update ignoring updates as the pluggable containerizer does"
             << "not support it";
 
   promise->set(Nothing());
@@ -768,11 +769,11 @@ void PluggableContainerizerProcess::_usage(
       }
     }
   } else {
-    VLOG(1) << "Usage supported by external containerizer";
+    VLOG(1) << "Usage supported by pluggable containerizer";
 
     if (!statistics.ParseFromString(result)) {
       promise->fail("Could not parse usage result protobuf (error: "
-                    + initializationError(statistics) + ")");
+        + initializationError(statistics) + ")");
       terminate(containerId);
       return;
     }
@@ -808,13 +809,13 @@ void PluggableContainerizerProcess::_destroy(
 
   if (!support.isError()) {
     if (support.get()) {
-      VLOG(1) << "Destroy supported by external containerizer";
+      VLOG(1) << "Destroy supported by pluggable containerizer";
 
       PluggableStatus ps;
       if (!ps.ParseFromString(result)) {
         LOG(ERROR) << "Could not parse update result protobuf (error: "
                    << initializationError(ps) << ")";
-        // Continue regular pogram flow as we need to kill the
+        // Continue regular program flow as we need to kill the
         // containerizer process.
       }
       VLOG(2) << "Destroy result: '" << ps.message() << "'";
@@ -824,7 +825,7 @@ void PluggableContainerizerProcess::_destroy(
   }
 
   // Additionally to the optional external destroy-command, we need to
-  // terminate the external containerizer process.
+  // terminate the external, pluggable containerizer process.
   terminate(containerId);
 }
 
@@ -967,25 +968,25 @@ Future<string> PluggableContainerizerProcess::read(const int& pipe)
 
 
 Try<bool> PluggableContainerizerProcess::commandSupported(
-  const Future<ResultFutures>& future,
-  string &result)
+    const Future<ResultFutures>& future,
+    string &resultString)
 {
   if (!future.isReady()) {
     return Error("Could not receive any result");
   }
 
-  Try<string> res = getResult(future.get());
+  Try<string> res = result(future.get());
   if (res.isError()) {
     return Error(res.error());
   }
-  result = res.get();
+  resultString = res.get();
 
-  Try<int> status = getStatus(future.get());
-  if (status.isError()) {
-    return Error(status.error());
+  Try<int> stat = status(future.get());
+  if (stat.isError()) {
+    return Error(stat.error());
   }
 
-  Try<bool> support = commandSupported(result, status.get());
+  Try<bool> support = commandSupported(resultString, stat.get());
   if (support.isError()) {
     return Error(support.error());
   }
@@ -1001,19 +1002,19 @@ Try<bool> PluggableContainerizerProcess::commandSupported(
   // The status is a waitpid-result which has to be checked for SIGNAL
   // based termination before masking out the exit-code.
   if (!WIFEXITED(status)) {
-    return Error(string("External containerizer terminated by signal ")
+    return Error(string("Pluggable containerizer terminated by signal ")
       + strsignal(WTERMSIG(status)));
   }
 
   int exitCode = WEXITSTATUS(status);
   if (exitCode != 0) {
-    return Error("External containerizer failed (exit: "
+    return Error("Pluggable containerizer failed (exit: "
       + stringify(exitCode) + ")");
   }
 
   bool implemented = result.length() != 0;
   if (!implemented) {
-    LOG(INFO) << "External containerizer exited 0 and had no output, which "
+    LOG(INFO) << "Pluggable containerizer exited 0 and had no output, which "
               << "requests the default implementation";
   }
 
@@ -1021,7 +1022,7 @@ Try<bool> PluggableContainerizerProcess::commandSupported(
 }
 
 
-Try<string> PluggableContainerizerProcess::getResult(
+Try<string> PluggableContainerizerProcess::result(
     const ResultFutures& futures)
 {
   Future<string> resultFuture = tuples::get<0>(futures);
@@ -1034,7 +1035,7 @@ Try<string> PluggableContainerizerProcess::getResult(
 }
 
 
-Try<int> PluggableContainerizerProcess::getStatus(const ResultFutures& futures)
+Try<int> PluggableContainerizerProcess::status(const ResultFutures& futures)
 {
   Future<Option<int> > statusFuture = tuples::get<1>(futures);
 
@@ -1111,7 +1112,7 @@ Try<pid_t> PluggableContainerizerProcess::invoke(
 
   CHECK(sandboxes.contains(containerId));
 
-  VLOG(1) << "Invoking external containerizer for method '" << command << "'";
+  VLOG(1) << "Invoking pluggable containerizer for method '" << command << "'";
 
   // Construct the argument vector.
   vector<string> argv;
@@ -1241,16 +1242,14 @@ ExecutorInfo containerExecutorInfo(
   }
 
   ExecutorInfo executor;
-
   // Command executors share the same id as the task.
   executor.mutable_executor_id()->set_value(task.task_id().value());
-
   executor.mutable_framework_id()->CopyFrom(frameworkId);
 
   // Prepare an executor name which includes information on the
   // task and a possibly attached container.
   string name =
-    "(External Containerizer Task: " + task.task_id().value();
+    "(Pluggable Containerizer Task: " + task.task_id().value();
   if (task.command().has_container()) {
     name += " Container image: " + task.command().container().image();
   }

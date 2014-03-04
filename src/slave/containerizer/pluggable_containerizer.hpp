@@ -37,7 +37,7 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-// The scheme an external containerizer has to adhere to is;
+// The scheme an external, pluggable containerizer has to adhere to is;
 //
 // COMMAND (ADDITIONAL-PARAMETERS) < INPUT-PROTO > RESULT-PROTO
 //
@@ -105,10 +105,7 @@ public:
   process::Future<Nothing> recover(
       const Option<state::SlaveState>& state);
 
-  // Start the containerized executor as given in executorInfo. In
-  // particular, only the resources specified in executorInfo will be
-  // available to the executor. This method will return when the
-  // executor has exec'ed.
+  // Start the containerized executor.
   process::Future<ExecutorInfo> launch(
       const ContainerID& containerId,
       const TaskInfo& task,
@@ -119,7 +116,7 @@ public:
       const process::PID<Slave>& slavePid,
       bool checkpoint);
 
-  // Update the executor's resources. The executor should not assume
+  // Update the container's resources. The executor should not assume
   // the resources have been changed until this method returns.
   process::Future<Nothing> update(
       const ContainerID& containerId,
@@ -141,7 +138,7 @@ private:
   const Flags flags;
 
   // Wraps futures of both, the result (protobuf-message) and the
-  // command's exit-code of the external containerizer.
+  // command's exit-code of the pluggable containerizer.
   typedef tuples::tuple<
       process::Future<std::string>,
       process::Future<Option<int> > > ResultFutures;
@@ -218,7 +215,8 @@ private:
   // requesting Mesos use the default strategy for a particular
   // method (usage, wait, and all the rest). Should the external
   // containerizer exit non-zero, it is always an error.
-  Try<bool> commandSupported(const std::string& input,
+  Try<bool> commandSupported(
+      const std::string& input,
       const int exitCode = 0);
 
   Try<bool> commandSupported(
@@ -226,26 +224,27 @@ private:
       std::string &result);
 
   // Try to get the piped protobuf-string which poses as a result
-  // of the external containerizer out of the ResultFutures.
-  Try<std::string> getResult(const ResultFutures& futures);
+  // of the external, pluggable containerizer out of the ResultFutures.
+  Try<std::string> result(const ResultFutures& futures);
 
   // Try to get the reaped exit-code out of the ResultFutures.
-  Try<int> getStatus(const ResultFutures& futures);
+  Try<int> status(const ResultFutures& futures);
 
   // Sets the pipe in non-blocking mode and reads until the write end
   // of that pipe got closed (EOF).
   process::Future<std::string> read(const int& pipe);
 
-  // Terminate a containerizer process and its children, sends an initial
-  // SIGTERM. After a grace period a SIGKILL is sent to left-over processess.
+  // Terminate a containerizer process and its children, sends an
+  // initial SIGTERM. After a grace period a SIGKILL is sent to left-
+  // over processess.
   void terminate(const ContainerID& containerId);
 
   // Call back for when the containerizer has terminated all processes
   // in the container.
   void cleanup(const ContainerID& containerId);
 
-  // Call the external containerizer and open a pipe for receiving
-  // results from that command.
+  // Call the external, pluggable containerizer and open a pipe for
+  // receiving results from that command.
   Try<pid_t> invoke(
       const std::string& command,
       const ContainerID& containerId,
@@ -271,7 +270,8 @@ ExecutorInfo containerExecutorInfo(
     const TaskInfo& task,
     const FrameworkID& frameworkId);
 
-// Get a human readable error string from an initializing error of a message.
+// Get a human readable error string from an initializing error of a
+// message.
 std::string initializationError(const google::protobuf::Message& message);
 
 } // namespace slave {

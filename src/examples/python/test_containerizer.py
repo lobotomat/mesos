@@ -56,7 +56,7 @@ def launch(container, arguments):
     proc.wait()
 
   except google.protobuf.message.DecodeError:
-    print >> sys.stderr, "Could not deserialise external container protobuf"
+    print >> sys.stderr, "Could not deserialise TaskInfo protobuf"
     return 1
 
   return 0
@@ -80,30 +80,25 @@ def update(container, arguments):
     os.close(1);
 
   except google.protobuf.message.DecodeError:
-    print >> sys.stderr, "Could not deserialise external container protobuf."
+    print >> sys.stderr, "Could not deserialise ResourceArray protobuf."
     return 1
 
   return 0
 
 def usage(container, arguments):
-  try:
-    statistics = mesos_pb2.ResourceStatistics();
+  statistics = mesos_pb2.ResourceStatistics();
 
-    statistics.timestamp = time.time();
+  statistics.timestamp = time.time();
 
-    # Cook up some fake data.
-    statistics.mem_rss_bytes = 1073741824;
-    statistics.mem_limit_bytes = 1073741824;
-    statistics.cpus_limit = 2;
-    statistics.cpus_user_time_secs = 0.12;
-    statistics.cpus_system_time_secs = 0.5;
+  # Cook up some fake data.
+  statistics.mem_rss_bytes = 1073741824;
+  statistics.mem_limit_bytes = 1073741824;
+  statistics.cpus_limit = 2;
+  statistics.cpus_user_time_secs = 0.12;
+  statistics.cpus_system_time_secs = 0.5;
 
-    os.write(1, statistics.SerializeToString());
-    os.close(1);
-
-  except google.protobuf.message.DecodeError:
-    print >> sys.stderr, "Could not deserialise external container protobuf"
-    return 1
+  os.write(1, statistics.SerializeToString());
+  os.close(1);
 
   return 0
 
