@@ -615,9 +615,9 @@ CLEANFILES += $(MESOS_SOURCES_JAR)
 # TODO(Charles Reiss): We really should be building the Java library
 # with -module, which means it should be a different library than the
 # main libmesos.so.
-noinst_LTLIBRARIES += libjava.la
+lib_LTLIBRARIES += libmesos_java.la
 
-libjava_la_SOURCES =							\
+libmesos_java_la_SOURCES =						\
 	java/jni/convert.cpp						\
 	java/jni/convert.hpp						\
 	java/jni/construct.cpp						\
@@ -639,20 +639,21 @@ libjava_la_SOURCES =							\
 	jvm/org/apache/zookeeper.cpp					\
 	jvm/org/apache/zookeeper.hpp
 
-libjava_la_CPPFLAGS = $(MESOS_CPPFLAGS)
-libjava_la_CPPFLAGS += $(JAVA_CPPFLAGS)
-libjava_la_CPPFLAGS += -I$(srcdir)/java/jni -Ijava/jni
+libmesos_java_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+libmesos_java_la_CPPFLAGS += $(JAVA_CPPFLAGS)
+libmesos_java_la_CPPFLAGS += -I$(srcdir)/java/jni -Ijava/jni
+libmesos_java_la_LDFLAGS = -module -lmesos
 
-libjava_la_DEPENDENCIES = $(MESOS_PROTO)
+libmesos_java_la_DEPENDENCIES = $(MESOS_PROTO)
 
-libjava_la_LIBADD = $(JAVA_LDFLAGS)
+libmesos_java_la_LIBADD = $(JAVA_LDFLAGS) -lmesos
 
 # We don't add libjava.la to libmesos_no_3rdparty.la so we don't
 # include the JNI bindings in the Python egg (but we might want to
 # reconsider this in the future). We also need to add the JAVA_LDFLAGS
 # to libmesos.la so on Linux we set the rpath for libmesos.so.
-libmesos_la_LIBADD += libjava.la
-libmesos_la_LIBADD += $(JAVA_LDFLAGS)
+#libmesos_la_LIBADD += libjava.la
+#libmesos_la_LIBADD += $(JAVA_LDFLAGS)
 
 # We need to generate the JNI header files before we build the sources
 # and the easiest way to do that with autotools is with the
@@ -661,7 +662,7 @@ libmesos_la_LIBADD += $(JAVA_LDFLAGS)
 # that should not matter as libjava.la is just a convenience library
 # and should not get exposed.
 
-nodist_libjava_la_SOURCES =						\
+nodist_libmesos_java_la_SOURCES =						\
 	java/jni/org_apache_mesos_MesosSchedulerDriver.h		\
 	java/jni/org_apache_mesos_MesosExecutorDriver.h			\
 	java/jni/org_apache_mesos_Log.h					\
@@ -670,7 +671,7 @@ nodist_libjava_la_SOURCES =						\
 	java/jni/org_apache_mesos_state_Variable.h			\
 	java/jni/org_apache_mesos_state_ZooKeeperState.h
 
-BUILT_SOURCES += $(nodist_libjava_la_SOURCES)
+BUILT_SOURCES += $(nodist_libmesos_java_la_SOURCES)
 
 java/jni/org_apache_mesos_MesosSchedulerDriver.h: $(MESOS_JAR)
 	$(JAVA_HOME)/bin/javah -d java/jni -classpath			\
@@ -892,7 +893,9 @@ mesos_tests_CPPFLAGS += -DBUILD_DIR=\"$(abs_top_builddir)\"
 mesos_tests_CPPFLAGS += -I../$(GTEST)/include
 mesos_tests_CPPFLAGS += -I../$(GMOCK)/include
 
-mesos_tests_LDADD = ../$(LIBPROCESS)/3rdparty/libgmock.la libmesos.la
+mesos_tests_LDADD = 	../$(LIBPROCESS)/3rdparty/libgmock.la 		\
+			libmesos.la 					\
+			libmesos_java.la
 
 mesos_tests_DEPENDENCIES = # Initialized to allow += below.
 

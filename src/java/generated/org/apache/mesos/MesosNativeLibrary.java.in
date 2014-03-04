@@ -49,7 +49,7 @@ public class MesosNativeLibrary {
       if (path != null) {
         System.load(path);
       } else {
-        System.loadLibrary("mesos");
+        System.loadLibrary("mesos_java");
       }
     } catch (UnsatisfiedLinkError error) {
       System.err.println("Failed to load native Mesos library from " +
