@@ -1,4 +1,4 @@
-We use Apache Maven to build jars that that are part of a Mesos Maven artifact
+  We use Apache Maven to build jars that that are part of a Mesos Maven artifact
 that can be uploaded directly to public Maven repositories like
 repository.apache.org and Maven Central.
 
