@@ -642,7 +642,7 @@ libmesos_java_la_SOURCES =						\
 libmesos_java_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libmesos_java_la_CPPFLAGS += $(JAVA_CPPFLAGS)
 libmesos_java_la_CPPFLAGS += -I$(srcdir)/java/jni -Ijava/jni
-libmesos_java_la_LDFLAGS = -module -lmesos
+libmesos_java_la_LDFLAGS = -lmesos
 
 libmesos_java_la_DEPENDENCIES = $(MESOS_PROTO)
 
