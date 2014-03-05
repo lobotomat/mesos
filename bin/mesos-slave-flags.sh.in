@@ -26,3 +26,7 @@ else
   MESOS_NATIVE_LIBRARY=@abs_top_builddir@/src/.libs/libmesos-@VERSION@.so
 fi
 export MESOS_NATIVE_LIBRARY
+
+MESOS_NATIVE_JAVA_LIBRARY=@abs_top_builddir@/src/.libs/libmesos-java.so
+
+export MESOS_NATIVE_JAVA_LIBRARY
