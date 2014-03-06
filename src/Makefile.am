@@ -611,10 +611,7 @@ $(MESOS_SOURCES_JAR): $(MESOS_JAR_SOURCE)
 CLEANFILES += $(MESOS_SOURCES_JAR)
 
 
-# Convenience library for JNI bindings.
-# TODO(Charles Reiss): We really should be building the Java library
-# with -module, which means it should be a different library than the
-# main libmesos.so.
+# Library for JNI bindings.
 lib_LTLIBRARIES += libmesos_java.la
 
 libmesos_java_la_SOURCES =						\
@@ -642,19 +639,18 @@ libmesos_java_la_SOURCES =						\
 libmesos_java_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libmesos_java_la_CPPFLAGS += $(JAVA_CPPFLAGS)
 libmesos_java_la_CPPFLAGS += -I$(srcdir)/java/jni -Ijava/jni
+
+# We are not using the -module flag here as that would result into libtool
+# rendering a .so instead of a .dylib on OSX.
+# TODO(tillt) Consider using -module for Linux and -bundle for OSX instead.
 libmesos_java_la_LDFLAGS = -lmesos
 
 libmesos_java_la_DEPENDENCIES = $(MESOS_PROTO)
 
 libmesos_java_la_LIBADD = $(JAVA_LDFLAGS) -lmesos
 
-# We don't add libjava.la to libmesos_no_3rdparty.la so we don't
-# include the JNI bindings in the Python egg (but we might want to
-# reconsider this in the future). We also need to add the JAVA_LDFLAGS
-# to libmesos.la so on Linux we set the rpath for libmesos.so.
-#libmesos_la_LIBADD += libjava.la
-#libmesos_la_LIBADD += $(JAVA_LDFLAGS)
-
+# We don't add libmesos_java.la to libmesos.la so we don't include JNI
+# bindings in the Python egg.
 # We need to generate the JNI header files before we build the sources
 # and the easiest way to do that with autotools is with the
 # BUILT_SOURCES mechanism. The downside of this is that a user cannot
@@ -662,7 +658,7 @@ libmesos_java_la_LIBADD = $(JAVA_LDFLAGS) -lmesos
 # that should not matter as libjava.la is just a convenience library
 # and should not get exposed.
 
-nodist_libmesos_java_la_SOURCES =						\
+nodist_libmesos_java_la_SOURCES =					\
 	java/jni/org_apache_mesos_MesosSchedulerDriver.h		\
 	java/jni/org_apache_mesos_MesosExecutorDriver.h			\
 	java/jni/org_apache_mesos_Log.h					\
@@ -688,11 +684,11 @@ java/jni/org_apache_mesos_Log.h: $(MESOS_JAR)
           $(PROTOBUF_JAR):java/classes org.apache.mesos.Log
 
 java/jni/org_apache_mesos_state_AbstractState.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni -classpath		\
+	$(JAVA_HOME)/bin/javah -d java/jni -classpath			\
           $(PROTOBUF_JAR):java/classes org.apache.mesos.state.AbstractState
 
 java/jni/org_apache_mesos_state_LevelDBState.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni -classpath		\
+	$(JAVA_HOME)/bin/javah -d java/jni -classpath			\
           $(PROTOBUF_JAR):java/classes org.apache.mesos.state.LevelDBState
 
 java/jni/org_apache_mesos_state_Variable.h: $(MESOS_JAR)
