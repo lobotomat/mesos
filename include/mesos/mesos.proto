@@ -137,9 +137,18 @@ message CommandInfo {
     optional bool executable = 2;
   }
 
+  // Describes a container that may be used once external isolation has been
+  // selected for the slave.
+  message ContainerInfo {
+    required string image = 1;
+    repeated string options = 2;
+  }
+
   repeated URI uris = 1;
   optional Environment environment = 2;
   required string value = 3;
+
+  optional ContainerInfo container = 4;
 }
 
 
@@ -472,4 +481,31 @@ message Parameters {
 message Credential {
   required string principal = 1;
   optional bytes secret = 2;
+}
+
+
+/**
+ * Collection of Resource.
+ */
+message ResourceArray {
+  repeated Resource resource = 1;
+}
+
+
+/**
+ * Describes an external containerizer's termination.
+ */
+message ExternalTermination {
+  required uint32 status = 1;
+  required bool killed = 2;
+  required string message = 3;
+}
+
+
+/**
+ * Describes an external containerizer's status.
+ */
+message ExternalStatus {
+  // This message does not have to adhere to any scheme.
+  required string message = 1;
 }
