@@ -586,7 +586,7 @@ void Slave::doReliableRegistration()
           }
         } else {
           ExecutorInfo* executorInfo = message.add_executor_infos();
-          executorInfo->MergeFrom(executor->info);
+          executorInfo->MergeFrom(executor->info.get());
 
           // TODO(bmahler): Kill this in 0.15.0, as in 0.14.0 we've
           // added code into the Scheduler Driver to ensure the
@@ -723,8 +723,7 @@ void Slave::runTask(
     }
   }
 
-  const ExecutorInfo& executorInfo = getExecutorInfo(frameworkId, task);
-  const ExecutorID& executorId = executorInfo.executor_id();
+  const ExecutorID& executorId = Executor::getId(task);
 
   // We add the task to 'pending' to ensure the framework is not
   // removed and the framework and top level executor directories
@@ -775,8 +774,7 @@ void Slave::_runTask(
   LOG(INFO) << "Launching task " << task.task_id()
             << " for framework " << frameworkId;
 
-  const ExecutorInfo& executorInfo = getExecutorInfo(frameworkId, task);
-  const ExecutorID& executorId = executorInfo.executor_id();
+  const ExecutorID& executorId = Executor::getId(task);
 
   // Remove the pending task from framework.
   Framework* framework = getFramework(frameworkId);
@@ -846,14 +844,74 @@ void Slave::_runTask(
 
   CHECK(framework->state == Framework::RUNNING) << framework->state;
 
-  // Either send the task to an executor or start a new executor
-  // and queue the task until the executor has started.
+  // 1) If executor hasn't been launched and isn't launching, launch new
+  // executor.
+  // 2) If executor is launching, schedule __runTask() on launching executor
+  // for the new task.
+  // 3) If executor is running, schedule __runTask().
   Executor* executor = framework->getExecutor(executorId);
-
   if (executor == NULL) {
-    executor = framework->launchExecutor(executorInfo, task);
+    executor = framework->launch(task);
   }
 
+  if (executor->state == Executor::LAUNCHING) {
+    executor->future.onAny(defer(self(),
+                                 &Self::__runTask,
+                                 lambda::_1,
+                                 frameworkInfo,
+                                 frameworkId,
+                                 pid,
+                                 task));
+    return;
+  }
+
+  __runTask(true, frameworkInfo, frameworkId, pid, task);
+}
+
+
+void Slave::__runTask(
+    const Future<bool>& future,
+    const FrameworkInfo& frameworkInfo,
+    const FrameworkID& frameworkId,
+    const std::string& pid,
+    const TaskInfo& task)
+{
+  Framework* framework = getFramework(frameworkId);
+  CHECK_NOTNULL(framework);
+
+  if (framework->state == Framework::TERMINATING) {
+    LOG(WARNING) << "Ignoring run task " << task.task_id()
+                 << " of framework " << frameworkId
+                 << " because the framework is terminating";
+
+    if (framework->executors.empty() && framework->pending.empty()) {
+      removeFramework(framework);
+    }
+    return;
+  }
+
+  if (!future.isReady()) {
+    LOG(ERROR) << "Failed to launch executor: "
+               << (future.isFailed() ? future.failure() : "future discarded");
+
+    const StatusUpdate& update = protobuf::createStatusUpdate(
+        frameworkId,
+        info.id(),
+        task.task_id(),
+        TASK_LOST,
+        "Could not launch the task because we failed to launch executor");
+
+    statusUpdate(update, UPID());
+
+    if (framework->executors.empty() && framework->pending.empty()) {
+      removeFramework(framework);
+    }
+
+    return;
+  }
+
+  const ExecutorID& executorId = Executor::getId(task);
+  Executor* executor = framework->getExecutor(executorId);
   CHECK_NOTNULL(executor);
 
   switch (executor->state) {
@@ -924,7 +982,6 @@ void Slave::_runTask(
   }
 }
 
-
 void Slave::killTask(
     const UPID& from,
     const FrameworkID& frameworkId,
@@ -990,6 +1047,38 @@ void Slave::killTask(
     statusUpdate(update, UPID());
     return;
   }
+
+  if (executor->state == Executor::LAUNCHING) {
+    executor->future.onAny(defer(self(),
+                                 &Slave::_killTask,
+                                 lambda::_1,
+                                 from,
+                                 frameworkId,
+                                 taskId));
+    return;
+  }
+
+  _killTask(true, from, frameworkId, taskId);
+}
+
+
+void Slave::_killTask(
+    const Future<bool>& future,
+    const UPID& from,
+    const FrameworkID& frameworkId,
+    const TaskID& taskId)
+{
+  if (!future.isReady()) {
+    LOG(ERROR) << "Failed to kill task: "
+               << (future.isFailed() ? future.failure() : "future discarded");
+    return;
+  }
+
+  Framework* framework = getFramework(frameworkId);
+  CHECK_NOTNULL(framework);
+
+  Executor* executor = framework->getExecutor(taskId);
+  CHECK_NOTNULL(executor);
 
   switch (executor->state) {
     case Executor::REGISTERING: {
@@ -1178,6 +1267,7 @@ void Slave::schedulerMessage(
   }
 
   switch (executor->state) {
+    case Executor::LAUNCHING:
     case Executor::REGISTERING:
     case Executor::TERMINATING:
     case Executor::TERMINATED:
@@ -1402,13 +1492,54 @@ void Slave::registerExecutor(
 
   Executor* executor = framework->getExecutor(executorId);
 
-  // Check the status of the executor.
+  // If the executor is still launching we'll defer registering
+  // until it is ready.
   if (executor == NULL) {
     LOG(WARNING) << "Unexpected executor '" << executorId
-                 << "' registering for framework " << frameworkId;
+      << "' registering for framework " << frameworkId;
     reply(ShutdownExecutorMessage());
     return;
   }
+
+  if (executor->state == Executor::LAUNCHING) {
+    executor->future.onAny(defer(self(),
+                                 &Slave::_registerExecutor,
+                                 lambda::_1,
+                                 from,
+                                 frameworkId,
+                                 executorId));
+    return;
+  }
+
+  _registerExecutor(true, from, frameworkId, executorId);
+}
+
+
+void Slave::_registerExecutor(
+    const Future<bool>& future,
+    const process::UPID& from,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId)
+{
+  Framework* framework = getFramework(frameworkId);
+  if (framework == NULL) {
+    LOG(WARNING) << " Shutting down executor '" << executorId
+                 << "' as the framework " << frameworkId
+                 << " does not exist";
+
+    reply(ShutdownExecutorMessage());
+    return;
+  }
+
+  if (!future.isReady()) {
+    LOG(ERROR) << "Failed to register executor: "
+               << (future.isFailed() ? future.failure() : "future discarded");
+    reply(ShutdownExecutorMessage());
+    return;
+  }
+
+  Executor* executor = framework->getExecutor(executorId);
+  CHECK_NOTNULL(executor);
 
   switch (executor->state) {
     case Executor::TERMINATING:
@@ -1462,7 +1593,7 @@ void Slave::registerExecutor(
 
       // Tell executor it's registered and give it any queued tasks.
       ExecutorRegisteredMessage message;
-      message.mutable_executor_info()->MergeFrom(executor->info);
+      message.mutable_executor_info()->MergeFrom(executor->info.get());
       message.mutable_framework_id()->MergeFrom(framework->id);
       message.mutable_framework_info()->MergeFrom(framework->info);
       message.mutable_slave_id()->MergeFrom(info.id());
@@ -1534,6 +1665,55 @@ void Slave::reregisterExecutor(
                  << "' as the framework " << frameworkId
                  << " is terminating";
 
+    reply(ShutdownExecutorMessage());
+    return;
+  }
+
+  Executor* executor = framework->getExecutor(executorId);
+  if (executor == NULL) {
+    LOG(WARNING) << "Unexpected executor '" << executorId
+      << "' re-registering for framework " << frameworkId;
+    reply(ShutdownExecutorMessage());
+    return;
+  }
+
+
+  if (executor->state == Executor::LAUNCHING) {
+    executor->future.onAny(defer(self(),
+                                 &Slave::_reregisterExecutor,
+                                 lambda::_1,
+                                 from,
+                                 frameworkId,
+                                 executorId,
+                                 tasks,
+                                 updates));
+  }
+
+  _reregisterExecutor(true, from, frameworkId, executorId, tasks, updates);
+}
+
+
+void Slave::_reregisterExecutor(
+    const Future<bool>& future,
+    const UPID& from,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const vector<TaskInfo>& tasks,
+    const vector<StatusUpdate>& updates)
+{
+  Framework* framework = getFramework(frameworkId);
+  if (framework == NULL) {
+    LOG(WARNING) << " Shutting down executor '" << executorId
+                 << "' as the framework " << frameworkId
+                 << " does not exist";
+
+    reply(ShutdownExecutorMessage());
+    return;
+  }
+
+  if (!future.isReady()) {
+    LOG(ERROR) << "Failed to reregister executor: "
+               << (future.isFailed() ? future.failure() : "future discarded");
     reply(ShutdownExecutorMessage());
     return;
   }
@@ -1625,7 +1805,6 @@ void Slave::reregisterExecutor(
 }
 
 
-
 void Slave::reregisterExecutorTimeout()
 {
   CHECK(state == RECOVERING || state == TERMINATING) << state;
@@ -1643,6 +1822,7 @@ void Slave::reregisterExecutorTimeout()
         case Executor::TERMINATING:
         case Executor::TERMINATED:
           break;
+        case Executor::LAUNCHING:
         case Executor::REGISTERING:
           // If we are here, the executor must have been hung and not
           // exited! This is because if the executor properly exited,
@@ -1898,63 +2078,6 @@ Framework* Slave::getFramework(const FrameworkID& frameworkId)
 }
 
 
-ExecutorInfo Slave::getExecutorInfo(
-    const FrameworkID& frameworkId,
-    const TaskInfo& task)
-{
-  CHECK_NE(task.has_executor(), task.has_command())
-    << "Task " << task.task_id()
-    << " should have either CommandInfo or ExecutorInfo set but not both";
-
-  if (task.has_command()) {
-    ExecutorInfo executor;
-
-    // Command executors share the same id as the task.
-    executor.mutable_executor_id()->set_value(task.task_id().value());
-
-    executor.mutable_framework_id()->CopyFrom(frameworkId);
-
-    // Prepare an executor name which includes information on the
-    // command being launched.
-    string name =
-      "(Task: " + task.task_id().value() + ") " + "(Command: sh -c '";
-
-    if (task.command().value().length() > 15) {
-      name += task.command().value().substr(0, 12) + "...')";
-    } else {
-      name += task.command().value() + "')";
-    }
-
-    executor.set_name("Command Executor " + name);
-    executor.set_source(task.task_id().value());
-
-    // Copy the CommandInfo to get the URIs and environment, but
-    // update it to invoke 'mesos-executor' (unless we couldn't
-    // resolve 'mesos-executor' via 'realpath', in which case just
-    // echo the error and exit).
-    executor.mutable_command()->MergeFrom(task.command());
-
-    Result<string> path = os::realpath(
-        path::join(flags.launcher_dir, "mesos-executor"));
-
-    if (path.isSome()) {
-      executor.mutable_command()->set_value(path.get());
-    } else {
-      executor.mutable_command()->set_value(
-          "echo '" +
-          (path.isError()
-           ? path.error()
-           : "No such file or directory") +
-          "'; exit 1");
-    }
-
-    return executor;
-  }
-
-  return task.executor();
-}
-
-
 void _monitor(
     const Future<Nothing>& monitor,
     const FrameworkID& frameworkId,
@@ -1969,11 +2092,11 @@ void _monitor(
   }
 }
 
-void Slave::executorStarted(
+bool Slave::executorStarted(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
     const ContainerID& containerId,
-    const Future<Nothing>& future)
+    const Future<ExecutorInfo>& future)
 {
   if (!future.isReady()) {
     // The containerizer will clean up if the launch fails we'll just log this
@@ -1983,15 +2106,16 @@ void Slave::executorStarted(
                << "' of framework '" << frameworkId
                << "' failed to start: "
                << (future.isFailed() ? future.failure() : " future discarded");
-    return;
+    return false;
   }
+
 
   Framework* framework = getFramework(frameworkId);
   if (framework == NULL) {
     LOG(WARNING) << "Framework '" << frameworkId
                  << "' for executor '" << executorId
                  << "' is no longer valid";
-    return;
+    return false;
   }
 
   CHECK(framework->state == Framework::RUNNING ||
@@ -2003,7 +2127,7 @@ void Slave::executorStarted(
                  << "' of framework '" << frameworkId
                  << "' because the framework is terminating";
     containerizer->destroy(containerId);
-    return;
+    return false;
   }
 
   Executor* executor = framework->getExecutor(executorId);
@@ -2011,8 +2135,12 @@ void Slave::executorStarted(
     LOG(WARNING) << "Killing unknown executor '" << executorId
                  << "' of framework '" << frameworkId << "'";
     containerizer->destroy(containerId);
-    return;
+    return false;
   }
+
+  // Attach executor info and transition executor state from
+  // LAUNCHING to REGISTERING.
+  executor->finalize(future.get());
 
   switch (executor->state) {
     case Executor::TERMINATING:
@@ -2029,7 +2157,7 @@ void Slave::executorStarted(
       // Start monitoring the container's resources.
       monitor.start(
           containerId,
-          executor->info,
+          executor->info.get(),
           flags.resource_monitoring_interval)
         .onAny(lambda::bind(_monitor,
                             lambda::_1,
@@ -2044,6 +2172,8 @@ void Slave::executorStarted(
                  << "' is in an unexpected state " << executor->state;
       break;
   }
+
+  return true;
 }
 
 
@@ -2110,6 +2240,35 @@ void Slave::executorTerminated(
                  << " does not exist";
     return;
   }
+
+  if (executor->state == Executor::LAUNCHING) {
+    executor->future.onAny(
+        defer(self(),
+              &Self::_executorTerminated,
+              lambda::_1,
+              frameworkId,
+              executorId,
+              termination,
+              status));
+    return;
+  }
+
+  _executorTerminated(true, frameworkId, executorId, termination, status);
+}
+
+
+void Slave::_executorTerminated(
+    const Future<bool>& future,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const Future<Containerizer::Termination>& termination,
+    int status)
+{
+  Framework* framework = getFramework(frameworkId);
+  CHECK_NOTNULL(framework);
+
+  Executor* executor = framework->getExecutor(executorId);
+  CHECK_NOTNULL(executor);
 
   switch (executor->state) {
     case Executor::REGISTERING:
@@ -2496,6 +2655,7 @@ void Slave::registerExecutorTimeout(
     case Executor::TERMINATED:
       // Ignore the registration timeout.
       break;
+    case Executor::LAUNCHING:
     case Executor::REGISTERING:
       LOG(INFO) << "Terminating executor " << executor->id
                 << " of framework " << framework->id
@@ -2626,7 +2786,7 @@ Future<Nothing> Slave::_recover()
       // Monitor the executor.
       monitor.start(
           executor->containerId,
-          executor->info,
+          executor->info.get(),
           flags.resource_monitoring_interval)
         .onAny(lambda::bind(_monitor,
                             lambda::_1,
@@ -2866,11 +3026,9 @@ Framework::~Framework()
 }
 
 
-// Create and launch an executor.
-Executor* Framework::launchExecutor(
-    const ExecutorInfo& executorInfo,
-    const TaskInfo& taskInfo)
-{
+Executor* Framework::launch(const TaskInfo& task) {
+  ExecutorID executorId = Executor::getId(task);
+
   // Generate an ID for the executor's container.
   // TODO(idownes) This should be done by the containerizer but we need the
   // ContainerID to create the executor's directory and to set up monitoring.
@@ -2883,16 +3041,19 @@ Executor* Framework::launchExecutor(
       slave->flags.work_dir,
       slave->info.id(),
       id,
-      executorInfo.executor_id(),
+      executorId,
       containerId);
 
   Executor* executor = new Executor(
-      slave, id, executorInfo, containerId, directory, info.checkpoint());
+      slave,
+      id,
+      executorId,
+      containerId,
+      directory,
+      info.checkpoint(),
+      !task.has_executor());
 
-  CHECK(!executors.contains(executorInfo.executor_id()))
-    << "Unknown executor " << executorInfo.executor_id();
-
-  executors[executorInfo.executor_id()] = executor;
+  executors[executorId] = executor;
 
   slave->files->attach(executor->directory, executor->directory)
     .onAny(defer(slave,
@@ -2900,36 +3061,23 @@ Executor* Framework::launchExecutor(
                  lambda::_1,
                  executor->directory));
 
-  // Tell the containerizer to launch the executor.
-  // NOTE: We modify the ExecutorInfo to include the task's
-  // resources when launching the executor so that the containerizer
-  // has non-zero resources to work with when the executor has
-  // no resources. This should be revisited after MESOS-600.
-  ExecutorInfo executorInfo_ = executor->info;
-  executorInfo_.mutable_resources()->MergeFrom(taskInfo.resources());
-
   // Launch the container.
-  slave->containerizer->launch(
+  Future<ExecutorInfo> launch = slave->containerizer->launch(
       containerId,
-      executorInfo_, // modified to include the task's resources
-      executor->directory,
+      task,
+      id,
+      directory,
       slave->flags.switch_user ? Option<string>(info.user()) : None(),
       slave->info.id(),
       slave->self(),
-      info.checkpoint())
-    .onAny(defer(slave,
-                 &Slave::executorStarted,
-                 id,
-                 executor->id,
-                 containerId,
-                 lambda::_1));
+      info.checkpoint());
 
   // Set up callback for executor termination.
   slave->containerizer->wait(containerId)
     .onAny(defer(slave,
                  &Slave::executorTerminated,
                  id,
-                 executor->id,
+                 executorId,
                  lambda::_1));
 
   // Make sure the executor registers within the given timeout.
@@ -2937,8 +3085,16 @@ Executor* Framework::launchExecutor(
         slave,
         &Slave::registerExecutorTimeout,
         id,
-        executor->id,
+        executorId,
         containerId);
+
+  executor->future = launch
+      .then(defer(slave,
+                  &Slave::executorStarted,
+                  id,
+                  executorId,
+                  containerId,
+                  lambda::_1));
 
   return executor;
 }
@@ -3109,38 +3265,45 @@ Executor::Executor(
     const ContainerID& _containerId,
     const string& _directory,
     bool _checkpoint)
-  : state(REGISTERING),
+  : state(LAUNCHING),
     slave(_slave),
     id(_info.executor_id()),
-    info(_info),
     frameworkId(_frameworkId),
     containerId(_containerId),
     directory(_directory),
     checkpoint(_checkpoint),
     commandExecutor(strings::contains(
-        info.command().value(),
+        _info.command().value(),
         path::join(slave->flags.launcher_dir, "mesos-executor"))),
     pid(UPID()),
     resources(_info.resources()),
     completedTasks(MAX_COMPLETED_TASKS_PER_EXECUTOR)
 {
   CHECK_NOTNULL(slave);
-
-  if (checkpoint && slave->state != slave->RECOVERING) {
-    // Checkpoint the executor info.
-    const string& path = paths::getExecutorInfoPath(
-        slave->metaDir, slave->info.id(), frameworkId, id);
-
-    LOG(INFO) << "Checkpointing ExecutorInfo to '" << path << "'";
-    CHECK_SOME(state::checkpoint(path, info));
-
-    // Create the meta executor directory.
-    // NOTE: This creates the 'latest' symlink in the meta directory.
-    paths::createExecutorDirectory(
-        slave->metaDir, slave->info.id(), frameworkId, id, containerId);
-  }
+  finalize(_info);
 }
 
+Executor::Executor(
+    Slave* _slave,
+    const FrameworkID& _frameworkId,
+    const ExecutorID& _executorId,
+    const ContainerID& _containerId,
+    const string& _directory,
+    bool _checkpoint,
+    bool _commandExecutor)
+  : state(LAUNCHING),
+    slave(_slave),
+    id(_executorId),
+    frameworkId(_frameworkId),
+    containerId(_containerId),
+    directory(_directory),
+    checkpoint(_checkpoint),
+    commandExecutor(_commandExecutor),
+    pid(UPID()),
+    completedTasks(MAX_COMPLETED_TASKS_PER_EXECUTOR)
+{
+  CHECK_NOTNULL(slave);
+}
 
 Executor::~Executor()
 {
@@ -3289,6 +3452,58 @@ bool Executor::incompleteTasks()
   return !queuedTasks.empty() ||
          !launchedTasks.empty() ||
          !terminatedTasks.empty();
+}
+
+
+void Executor::finalize(const ExecutorInfo& _info)
+{
+  CHECK(info.isNone());
+  CHECK(state == LAUNCHING);
+
+  info = _info;
+  state = REGISTERING;
+  if (checkpoint && slave->state != slave->RECOVERING) {
+    // Checkpoint the executor info.
+    const string& path = paths::getExecutorInfoPath(
+        slave->metaDir, slave->info.id(), frameworkId, id);
+
+    LOG(INFO) << "Checkpointing ExecutorInfo to '" << path << "'";
+    CHECK_SOME(state::checkpoint(path, _info));
+
+    // Create the meta executor directory.
+    // NOTE: This creates the 'latest' symlink in the meta directory.
+    paths::createExecutorDirectory(
+        slave->metaDir, slave->info.id(), frameworkId, id, containerId);
+  }
+}
+
+
+ExecutorID Executor::getId(const TaskInfo& task)
+{
+  ExecutorID id;
+  if (task.has_executor()) {
+    id.CopyFrom(task.executor().executor_id());
+  } else {
+    id.set_value(task.task_id().value());
+  }
+  return id;
+}
+
+
+Try<Nothing> Executor::isValid(
+    const ExecutorInfo& info,
+    const TaskInfo& task)
+{
+  // For now, we only check that the executor id match the task id
+  // if no executor was provided in the task.
+  const ExecutorID& executorId = getId(task);
+  if (task.has_executor() && !(info.executor_id() == executorId)) {
+    return Error(
+        "Executor id is invalid. Found " + stringify(info.executor_id()) +
+        " and expected " + stringify(executorId));
+  }
+
+  return Nothing();
 }
 
 
