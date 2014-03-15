@@ -1,22 +1,20 @@
 #ifndef __PROCESS_SUBPROCESS_HPP__
 #define __PROCESS_SUBPROCESS_HPP__
 
+#include <sys/types.h>
 #include <unistd.h>
+
+#include <map>
+#include <string>
 
 #include <glog/logging.h>
 
-#include <sys/types.h>
-
-#include <string>
-
 #include <process/future.hpp>
-#include <process/reap.hpp>
 
-#include <stout/error.hpp>
 #include <stout/lambda.hpp>
 #include <stout/memory.hpp>
-#include <stout/nothing.hpp>
 #include <stout/option.hpp>
+#include <stout/os.hpp>
 #include <stout/try.hpp>
 
 namespace process {
@@ -43,7 +41,10 @@ struct Subprocess
 
 private:
   Subprocess() : data(new Data()) {}
-  friend Try<Subprocess> subprocess(const std::string&);
+  friend Try<Subprocess> subprocess(
+      const std::string& command,
+      const std::map<std::string, std::string>& env,
+      const lambda::function<void()>& inChild);
 
   struct Data
   {
@@ -75,110 +76,35 @@ namespace internal {
 void cleanup(
     const Future<Option<int> >& result,
     Promise<Option<int> >* promise,
-    const Subprocess& subprocess)
+    const Subprocess& subprocess);
+
+// Used to build the environment to pass to the subprocess.
+class Envp
 {
-  CHECK(!result.isPending());
-  CHECK(!result.isDiscarded());
+public:
+  explicit Envp(const std::map<std::string, std::string>& env);
+  ~Envp();
 
-  if (result.isFailed()) {
-    promise->fail(result.failure());
-  } else {
-    promise->set(result.get());
-  }
+  char** operator () () const { return envp_; }
 
-  delete promise;
+private:
+  Envp();  // = delete
+  Envp(const Envp&);  // = delete
+
+  char** envp_;
+  size_t size_;
+};
+
 }
-
-}
-
 
 // Runs the provided command in a subprocess.
-inline Try<Subprocess> subprocess(const std::string& command)
-{
-  // Create pipes for stdin, stdout, stderr.
-  // Index 0 is for reading, and index 1 is for writing.
-  int stdinPipe[2];
-  int stdoutPipe[2];
-  int stderrPipe[2];
-
-  if (pipe(stdinPipe) == -1) {
-    return ErrnoError("Failed to create pipe");
-  } else if (pipe(stdoutPipe) == -1) {
-    os::close(stdinPipe[0]);
-    os::close(stdinPipe[1]);
-    return ErrnoError("Failed to create pipe");
-  } else if (pipe(stderrPipe) == -1) {
-    os::close(stdinPipe[0]);
-    os::close(stdinPipe[1]);
-    os::close(stdoutPipe[0]);
-    os::close(stdoutPipe[1]);
-    return ErrnoError("Failed to create pipe");
-  }
-
-  pid_t pid;
-  if ((pid = fork()) == -1) {
-    os::close(stdinPipe[0]);
-    os::close(stdinPipe[1]);
-    os::close(stdoutPipe[0]);
-    os::close(stdoutPipe[1]);
-    os::close(stderrPipe[0]);
-    os::close(stderrPipe[1]);
-    return ErrnoError("Failed to fork");
-  }
-
-  Subprocess process;
-  process.data->pid = pid;
-
-  if (process.data->pid == 0) {
-    // Child.
-    // Close parent's end of the pipes.
-    os::close(stdinPipe[1]);
-    os::close(stdoutPipe[0]);
-    os::close(stderrPipe[0]);
-
-    // Make our pipes look like stdin, stderr, stdout before we exec.
-    while (dup2(stdinPipe[0], STDIN_FILENO)   == -1 && errno == EINTR);
-    while (dup2(stdoutPipe[1], STDOUT_FILENO) == -1 && errno == EINTR);
-    while (dup2(stderrPipe[1], STDERR_FILENO) == -1 && errno == EINTR);
-
-    // Close the copies.
-    os::close(stdinPipe[0]);
-    os::close(stdoutPipe[1]);
-    os::close(stderrPipe[1]);
-
-    execl("/bin/sh", "sh", "-c", command.c_str(), (char *) NULL);
-
-    ABORT("Failed to execl '/bin sh -c ", command.c_str(), "'\n");
-  }
-
-  // Parent.
-
-  // Close the child's end of the pipes.
-  os::close(stdinPipe[0]);
-  os::close(stdoutPipe[1]);
-  os::close(stderrPipe[1]);
-
-  process.data->in = stdinPipe[1];
-  process.data->out = stdoutPipe[0];
-  process.data->err = stderrPipe[0];
-
-  // Rather than directly exposing the future from process::reap, we
-  // must use an explicit promise so that we can ensure we can receive
-  // the termination signal. Otherwise, the caller can discard the
-  // reap future, and we will not know when it is safe to close the
-  // file descriptors.
-  Promise<Option<int> >* promise = new Promise<Option<int> >();
-  process.data->status = promise->future();
-
-  // We need to bind a copy of this Subprocess into the onAny callback
-  // below to ensure that we don't close the file descriptors before
-  // the subprocess has terminated (i.e., because the caller doesn't
-  // keep a copy of this Subprocess around themselves).
-  process::reap(process.data->pid)
-    .onAny(lambda::bind(internal::cleanup, lambda::_1, promise, process));
-
-  return process;
-}
+// NOTE: Take extra care about the design of the inChild function
+// lambda as it must not contain any async unsafe code.
+Try<Subprocess> subprocess(
+    const std::string& command,
+    const std::map<std::string, std::string>& env =
+      std::map<std::string, std::string>(),
+    const lambda::function<void()>& inChild = NULL);
 
 } // namespace process {
 

@@ -1,10 +1,10 @@
 #include <signal.h>
-
-#include <gmock/gmock.h>
-
 #include <sys/types.h>
 
+#include <map>
 #include <string>
+
+#include <gmock/gmock.h>
 
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
@@ -17,8 +17,19 @@
 #include <stout/os/read.hpp>
 
 using namespace process;
+using process::internal::Envp;
 
+using std::map;
 using std::string;
+
+TEST(Envp, one)
+{
+  map<string, string> env;
+  env["MESSAGE"] = "hello";
+
+  Envp envp(env);
+  EXPECT_STREQ("MESSAGE=hello", envp()[0]);
+}
 
 
 TEST(Subprocess, status)
@@ -103,7 +114,6 @@ TEST(Subprocess, status)
 
   Clock::resume();
 }
-
 
 
 TEST(Subprocess, output)
@@ -237,14 +247,18 @@ TEST(Subprocess, env)
 {
   Clock::pause();
 
-  // Simple envvar
-  Try<Subprocess> s =
-      subprocess("/usr/bin/env MESSAGE=hello bash -c 'echo $MESSAGE'");
+  // Simple value
+  map<string, string> env;
+  env["MESSAGE"] = "hello";
+  Try<Subprocess> s = subprocess("echo $MESSAGE", env);
+
   ASSERT_SOME(s);
+
   ASSERT_SOME(os::nonblock(s.get().out()));
+
   AWAIT_EXPECT_EQ("hello\n", io::read(s.get().out()));
 
-  // Advance time until the reaper reaps the subprocess.
+  // Advance time until the internal reaper reaps the subprocess.
   while (s.get().status().isPending()) {
     Clock::advance(Seconds(1));
     Clock::settle();
@@ -257,15 +271,18 @@ TEST(Subprocess, env)
   ASSERT_TRUE(WIFEXITED(status));
   ASSERT_EQ(0, WEXITSTATUS(status));
 
+  // Spaces in value
+  env.clear();
+  env["MESSAGE"] = "\"hello world\"";
+  s = subprocess("echo $MESSAGE", env);
 
-  // Spaces and quotes
-  s = subprocess(
-      "/usr/bin/env MESSAGE=\"hello world\" bash -c 'echo $MESSAGE'");
   ASSERT_SOME(s);
-  ASSERT_SOME(os::nonblock(s.get().out()));
-  AWAIT_EXPECT_EQ("hello world\n", io::read(s.get().out()));
 
-  // Advance time until the reaper reaps the subprocess.
+  ASSERT_SOME(os::nonblock(s.get().out()));
+
+  AWAIT_EXPECT_EQ("\"hello world\"\n", io::read(s.get().out()));
+
+  // Advance time until the internal reaper reaps the subprocess.
   while (s.get().status().isPending()) {
     Clock::advance(Seconds(1));
     Clock::settle();
@@ -277,4 +294,86 @@ TEST(Subprocess, env)
 
   ASSERT_TRUE(WIFEXITED(status));
   ASSERT_EQ(0, WEXITSTATUS(status));
+
+  // Multiple key-value pairs
+  env.clear();
+  env["MESSAGE0"] = "hello";
+  env["MESSAGE1"] = "world";
+  s = subprocess("echo $MESSAGE0 $MESSAGE1", env);
+
+  ASSERT_SOME(s);
+
+  ASSERT_SOME(os::nonblock(s.get().out()));
+
+  AWAIT_EXPECT_EQ("hello world\n", io::read(s.get().out()));
+
+  // Advance time until the internal reaper reaps the subprocess.
+  while (s.get().status().isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_ASSERT_READY(s.get().status());
+  ASSERT_SOME(s.get().status().get());
+  status = s.get().status().get().get();
+
+  ASSERT_TRUE(WIFEXITED(status));
+  ASSERT_EQ(0, WEXITSTATUS(status));
+}
+
+
+struct ChildFunction {
+  ChildFunction(const string& path, const string& text) :
+    path(path), text(text) {};
+
+  void operator ()()
+  {
+    int f = open(
+      path.c_str(),
+      O_CREAT | O_WRONLY | O_TRUNC,
+      S_IRUSR | S_IWUSR);
+    if(f < 0)
+        return;
+    write(f, text.c_str(), text.size());
+    close(f);
+  }
+
+  const string& path;
+  const string& text;
+};
+
+
+TEST(Subprocess, child)
+{
+  Clock::pause();
+
+  string path = "/tmp/SubprocessChildTest";
+
+  Try<Subprocess> s = subprocess(
+      "cat " + path,
+      map<string, string>(),
+      ChildFunction(path, "hello"));
+
+  ASSERT_SOME(s);
+
+  ASSERT_SOME(os::nonblock(s.get().out()));
+
+  AWAIT_EXPECT_EQ("hello", io::read(s.get().out()));
+
+  // Advance time until the internal reaper reaps the subprocess.
+  while (s.get().status().isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
+  AWAIT_ASSERT_READY(s.get().status());
+  ASSERT_SOME(s.get().status().get());
+  int status = s.get().status().get().get();
+
+  unlink(path.c_str());
+
+  ASSERT_TRUE(WIFEXITED(status));
+  ASSERT_EQ(0, WEXITSTATUS(status));
+
+  Clock::resume();
 }
