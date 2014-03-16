@@ -274,8 +274,9 @@ Future<ExecutorInfo> ExternalContainerizerProcess::launch(
   // When the selected command has no container attached, use the
   // default from the slave startup flags, if available.
   if (!command->has_container()) {
-    if (flags.default_container.isSome()) {
-      command->mutable_container()->set_image(flags.default_container.get());
+    if (flags.default_container_image.isSome()) {
+      command->mutable_container()->set_image(
+          flags.default_container_image.get());
     } else {
       LOG(INFO) << "No container specified in task and no default given. "
                 << "The external containerizer will have to fill in "
@@ -366,6 +367,7 @@ Future<ExecutorInfo> ExternalContainerizerProcess::_launch(
     // For the specific case of a launch however, there can not be an
     // internal implementation for a external containerizer, hence
     // we need to fail or even abort at this point.
+    // TODO(tillt): Consider using posix-isolator as a fallback.
     terminate(containerId);
     return Failure("External containerizer does not support launch");
   }
@@ -374,6 +376,8 @@ Future<ExecutorInfo> ExternalContainerizerProcess::_launch(
 
   ExternalStatus ps;
   if (!ps.ParseFromString(result)) {
+    // TODO(tillt): Consider not terminating the containerizer due
+    // to protocol breach but only fail the operation.
     terminate(containerId);
     return Failure("Could not parse launch result protobuf (error: "
       + initializationError(ps) + ")");
@@ -470,6 +474,8 @@ void ExternalContainerizerProcess::_wait(
 
     ExternalTermination pt;
     if (!pt.ParseFromString(result)) {
+      // TODO(tillt): Consider not terminating the containerizer due
+      // to protocol breach but only fail the operation.
       run->termination.fail("Could not parse wait result protobuf (error: "
         + initializationError(pt) + ")");
       return;
@@ -557,6 +563,8 @@ Future<Nothing> ExternalContainerizerProcess::_update(
 
     ExternalStatus ps;
     if (!ps.ParseFromString(result)) {
+      // TODO(tillt): Consider not terminating the containerizer due
+      // to protocol breach but only fail the operation.
       terminate(containerId);
       return Failure("Could not parse update result protobuf (error: "
         + initializationError(ps) + ")");
@@ -639,6 +647,8 @@ Future<ResourceStatistics> ExternalContainerizerProcess::_usage(
     statistics.set_timestamp(Clock::now().secs());
 
     // Set the resource allocations.
+    // TODO(idownes): After recovery resources won't be known until
+    // after an update() because they aren't part of the SlaveState.
     const Resources& resources = running[containerId]->resources;
     const Option<Bytes>& mem = resources.mem();
     if (mem.isSome()) {
@@ -705,6 +715,8 @@ Future<ResourceStatistics> ExternalContainerizerProcess::_usage(
     VLOG(1) << "Usage supported by external containerizer";
 
     if (!statistics.ParseFromString(result)) {
+      // TODO(tillt): Consider not terminating the containerizer due
+      // to protocol breach but only fail the operation.
       terminate(containerId);
       return Failure("Could not parse usage result protobuf (error: "
         + initializationError(statistics) + ")");
@@ -787,7 +799,7 @@ void ExternalContainerizerProcess::_destroy(
   }
 
   // Additionally to the optional external destroy-command, we need to
-  // terminate the external, external containerizer process.
+  // terminate the external containerizer's process.
   terminate(containerId);
 }
 
@@ -796,7 +808,10 @@ void ExternalContainerizerProcess::reaped(
     const ContainerID& containerId,
     const Future<Option<int> >& status)
 {
-  CHECK(running.contains(containerId));
+  if (!running.contains(containerId)) {
+    LOG(WARNING) << "Container '" << containerId << "' not running";
+    return;
+  }
 
   VLOG(2) << "status-future on containerId '" << containerId
           << "' has reached: "
@@ -853,13 +868,15 @@ void ExternalContainerizerProcess::cleanup(
 
 void ExternalContainerizerProcess::terminate(const ContainerID& containerId)
 {
-  CHECK(running.contains(containerId));
+  if (!running.contains(containerId)) {
+    LOG(WARNING) << "Container '" << containerId << "' not running";
+    return;
+  }
 
   pid_t pid = running[containerId]->pid;
 
   // Kill the containerizer and all processes in the containerizer's
-  // process group and session in a graceful way by sending a SIGTERM
-  // first.
+  // process group and session.
   // TODO(tillt): Introduce signal escalation once we have a proper
   // solution for that.
   Try<list<os::ProcessTree> > trees =
@@ -1067,14 +1084,48 @@ Try<pid_t> ExternalContainerizerProcess::invoke(
       environment,
       ChildFunction(sandboxes[containerId]->directory));
 
-  resultPipe = external.get().out();
-
   if (external.isError()) {
     return Error(string("Failed to execute external containerizer: ")
       + external.error());
   }
 
-  // Transmit protobuf data via stdout.
+  // Redirect output (stderr) from the containerizer to log file in the
+  // executor work directory, chown'ing them if a user is specified.
+  Try<int> err = os::open(
+      path::join(sandboxes[containerId]->directory, "stderr"),
+      O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+
+  if (err.isError()) {
+    return Error("Failed to redirect stderr:" + err.error());
+  }
+
+  if (sandboxes[containerId]->user.isSome()) {
+    Try<Nothing> chown = os::chown(
+        sandboxes[containerId]->user.get(),
+        path::join(sandboxes[containerId]->directory, "stderr"));
+
+    if (chown.isError()) {
+      os::close(err.get());
+      return Error("Failed to redirect stderr:" + chown.error());
+    }
+  }
+
+  Try<Nothing> nonblock = os::nonblock(external.get().err());
+  if (nonblock.isError()) {
+    os::close(err.get());
+    return Error("Failed to redirect stderr:" + nonblock.error());
+  }
+
+  io::splice(external.get().err(), err.get())
+    .onAny(lambda::bind(&os::close, err.get()));
+
+  // Return the external containerizer's output pipe for receiving
+  // protobuffed results.
+  resultPipe = external.get().out();
+
+  // Transmit protobuf data via stdout towards the external
+  // containerizer.
   if (output.length() > 0) {
     VLOG(2) << "Writing to child's standard input "
             << "(" << output.length() << " bytes)";

@@ -202,10 +202,9 @@ public:
         "The path to the external containerizer executable used when\n"
         "external isolation is activated (--isolation=external).\n");
 
-    add(&Flags::default_container,
-        "default_container",
-        "The default container image is used when a task fails to specify\n"
-        "one.");
+    add(&Flags::default_container_image,
+        "default_container_image",
+        "The default container image to use if not specified by a task.\n");
   }
 
   bool version;
@@ -235,7 +234,7 @@ public:
   bool cgroups_enable_cfs;
 #endif
   Option<std::string> containerizer_path;
-  Option<std::string> default_container;
+  Option<std::string> default_container_image;
 };
 
 } // namespace mesos {
