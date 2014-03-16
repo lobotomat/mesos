@@ -170,29 +170,26 @@ private:
   // Stores sandbox specific information.
   hashmap<ContainerID, process::Owned<Sandbox> > sandboxes;
 
-  void _launch(
+  process::Future<ExecutorInfo> _launch(
       const ContainerID& containerId,
       pid_t pid,
       const FrameworkID& frameworkId,
       const ExecutorInfo executorInfo,
       const SlaveID& slaveId,
       bool checkpoint,
-      const process::Future<std::string>& future,
-      process::Owned<process::Promise<ExecutorInfo> > promise);
+      const process::Future<std::string>& future);
 
   void _wait(
       const ContainerID& containerId,
       const process::Future<ResultFutures>& future);
 
-  void _update(
+  process::Future<Nothing> _update(
       const ContainerID& containerId,
-      const process::Future<ResultFutures>& future,
-      process::Owned<process::Promise<Nothing> > promise);
+      const process::Future<ResultFutures>& future);
 
-  void _usage(
+  process::Future<ResourceStatistics> _usage(
       const ContainerID& containerId,
-      const process::Future<ResultFutures>& future,
-      process::Owned<process::Promise<ResourceStatistics> > promise);
+      const process::Future<ResultFutures>& future);
 
   void _destroy(
       const ContainerID& containerId,

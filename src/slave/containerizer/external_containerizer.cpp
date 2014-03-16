@@ -152,16 +152,14 @@ ExternalContainerizerProcess::ExternalContainerizerProcess(
 Future<Nothing> ExternalContainerizerProcess::recover(
     const Option<state::SlaveState>& state)
 {
-  LOG(INFO) << "Recovering containerizer";
-
   // Filter the executor run states that we attempt to recover and do
   // so.
   if (state.isSome()) {
     foreachvalue (const FrameworkState& framework, state.get().frameworks) {
       foreachvalue (const ExecutorState& executor, framework.executors) {
 
-        LOG(INFO) << "Recovering executor '" << executor.id
-                  << "' of framework " << framework.id;
+        VLOG(2) << "Recovering executor '" << executor.id
+                << "' of framework " << framework.id;
 
         if (executor.info.isNone()) {
           LOG(WARNING) << "Skipping recovery of executor '" << executor.id
@@ -182,6 +180,14 @@ Future<Nothing> ExternalContainerizerProcess::recover(
         CHECK(executor.runs.contains(containerId));
         const RunState& run = executor.runs.get(containerId).get();
 
+        // We need the pid so the reaper can monitor the executor so skip this
+        // executor if it's not present. This is not an error because the slave
+        // will try to wait on the container which will return a failed
+        // Termination and everything will get cleaned up.
+        if (!run.forkedPid.isSome()) {
+          continue;
+        }
+
         if (run.completed) {
           LOG(INFO) << "Skipping recovery of executor '" << executor.id
                     << "' of framework " << framework.id
@@ -190,9 +196,6 @@ Future<Nothing> ExternalContainerizerProcess::recover(
           continue;
         }
 
-        CHECK_SOME(run.id);
-
-        CHECK_SOME(run.forkedPid);
         const pid_t pid(run.forkedPid.get());
 
         running.put(containerId, Owned<Running>(new Running(pid)));
@@ -304,23 +307,6 @@ Future<ExecutorInfo> ExternalContainerizerProcess::launch(
   // Record the process.
   running.put(containerId, Owned<Running>(new Running(invoked.get())));
 
-  Owned<Promise<ExecutorInfo> > promise(new Promise<ExecutorInfo>);
-
-  // Read from the result-pipe and invoke callback when reaching EOF.
-  read(resultPipe)
-    .onAny(defer(
-        PID<ExternalContainerizerProcess>(this),
-        &ExternalContainerizerProcess::_launch,
-        containerId,
-        invoked.get(),
-        frameworkId,
-        executor,
-        slaveId,
-        checkpoint,
-        lambda::_1,
-        promise))
-    .then(lambda::bind(os::close, resultPipe));
-
   // Observe the process status and install a callback for status
   // changes.
   process::reap(invoked.get())
@@ -330,40 +316,48 @@ Future<ExecutorInfo> ExternalContainerizerProcess::launch(
         containerId,
         lambda::_1));
 
-  return promise->future();
+  // Read from the result-pipe and invoke callback when reaching EOF.
+  return read(resultPipe)
+    .onAny(lambda::bind(&os::close, resultPipe))
+    .then(defer(
+        PID<ExternalContainerizerProcess>(this),
+        &ExternalContainerizerProcess::_launch,
+        containerId,
+        invoked.get(),
+        frameworkId,
+        executor,
+        slaveId,
+        checkpoint,
+        lambda::_1));
 }
 
 
-void ExternalContainerizerProcess::_launch(
+Future<ExecutorInfo> ExternalContainerizerProcess::_launch(
     const ContainerID& containerId,
     pid_t pid,
     const FrameworkID& frameworkId,
     const ExecutorInfo executorInfo,
     const SlaveID& slaveId,
     bool checkpoint,
-    const Future<string>& future,
-    Owned<Promise<ExecutorInfo> > promise)
+    const Future<string>& future)
 {
   VLOG(1) << "Launch callback triggered on container '" << containerId << "'";
 
   if (!running.contains(containerId)) {
-    promise->fail("Container '" + containerId.value() + "' not running");
-    return;
+    return Failure("Container '" + containerId.value() + "' not running");
   }
 
   if (!future.isReady()) {
-    promise->fail("Could not receive any result from external containerizer");
     terminate(containerId);
-    return;
+    return Failure("Could not receive any result from external containerizer");
   }
 
   string result = future.get();
 
   Try<bool> support = commandSupported(result);
   if (support.isError()) {
-    promise->fail(support.error());
     terminate(containerId);
-    return;
+    return Failure(support.error());
   }
 
   if (!support.get()) {
@@ -372,18 +366,17 @@ void ExternalContainerizerProcess::_launch(
     // For the specific case of a launch however, there can not be an
     // internal implementation for a external containerizer, hence
     // we need to fail or even abort at this point.
-    promise->fail("External containerizer does not support launch");
     terminate(containerId);
-    return;
+    return Failure("External containerizer does not support launch");
   }
 
   VLOG(1) << "Launch supported by external containerizer";
 
   ExternalStatus ps;
   if (!ps.ParseFromString(result)) {
-    promise->fail("Could not parse launch result protobuf (error: "
-      + initializationError(ps) + ")");
     terminate(containerId);
+    return Failure("Could not parse launch result protobuf (error: "
+      + initializationError(ps) + ")");
   }
 
   VLOG(2) << "Launch result: '" << ps.message() << "'";
@@ -404,13 +397,14 @@ void ExternalContainerizerProcess::_launch(
         slave::state::checkpoint(path, stringify(pid));
 
     if (checkpointed.isError()) {
-      promise->fail("Failed to checkpoint container '" + containerId.value()
-        + "' pid " + stringify(pid) + " to '" + path + "'");
       terminate(containerId);
+      return Failure("Failed to checkpoint container '" + containerId.value()
+        + "' pid " + stringify(pid) + " to '" + path + "'");
     }
   }
+
   VLOG(1) << "Launch finishing up for container '" << containerId << "'";
-  promise->set(executorInfo);
+  return executorInfo;
 }
 
 
@@ -439,8 +433,7 @@ Future<Containerizer::Termination> ExternalContainerizerProcess::wait(
         PID<ExternalContainerizerProcess>(this),
         &ExternalContainerizerProcess::_wait,
         containerId,
-        lambda::_1))
-    .then(lambda::bind(os::close, resultPipe));
+        lambda::_1));
 
   return running[containerId]->termination.future();
 }
@@ -531,41 +524,32 @@ Future<Nothing> ExternalContainerizerProcess::update(
       + "' failed (error: " + invoked.error() + ")");
   }
 
-  Owned<Promise<Nothing> > promise(new Promise<Nothing>);
-
   // Await both, input from the pipe as well as an exit of the
   // process.
-  await(read(resultPipe), reap(invoked.get()))
-    .onAny(defer(
+  return await(read(resultPipe), reap(invoked.get()))
+    .then(defer(
         PID<ExternalContainerizerProcess>(this),
         &ExternalContainerizerProcess::_update,
         containerId,
-        lambda::_1,
-        promise))
-    .then(lambda::bind(os::close, resultPipe));
-
-  return promise->future();
+        lambda::_1));
 }
 
 
-void ExternalContainerizerProcess::_update(
+Future<Nothing> ExternalContainerizerProcess::_update(
     const ContainerID& containerId,
-    const Future<ResultFutures>& future,
-    Owned<Promise<Nothing> > promise)
+    const Future<ResultFutures>& future)
 {
   VLOG(1) << "Update callback triggered on container '" << containerId << "'";
 
   if (!running.contains(containerId)) {
-    promise->fail("Container '" + containerId.value() + "' not running");
-    return;
+    return Failure("Container '" + containerId.value() + "' not running");
   }
 
   string result;
   Try<bool> support = commandSupported(future, result);
   if (support.isError()) {
-    promise->fail(support.error());
     terminate(containerId);
-    return;
+    return Failure(support.error());
   }
 
   if (support.get()) {
@@ -573,24 +557,21 @@ void ExternalContainerizerProcess::_update(
 
     ExternalStatus ps;
     if (!ps.ParseFromString(result)) {
-      promise->fail("Could not parse update result protobuf (error: "
-        + initializationError(ps) + ")");
       terminate(containerId);
-      return;
+      return Failure("Could not parse update result protobuf (error: "
+        + initializationError(ps) + ")");
     }
 
     VLOG(2) << "Update result: '" << ps.message() << "'";
 
-    promise->set(Nothing());
-
-    return;
+    return Nothing();
   }
 
   VLOG(1) << "Update requests default implementation";
   LOG(INFO) << "Update ignoring updates as the external containerizer does"
             << "not support it";
 
-  promise->set(Nothing());
+  return Nothing();
 }
 
 
@@ -612,41 +593,32 @@ Future<ResourceStatistics> ExternalContainerizerProcess::usage(
       + "' failed (error: " + invoked.error() + ")");
   }
 
-  Owned<Promise<ResourceStatistics> > promise(new Promise<ResourceStatistics>);
-
   // Await both, input from the pipe as well as an exit of the
   // process.
-  await(read(resultPipe), reap(invoked.get()))
-    .onAny(defer(
+  return await(read(resultPipe), reap(invoked.get()))
+    .then(defer(
         PID<ExternalContainerizerProcess>(this),
         &ExternalContainerizerProcess::_usage,
         containerId,
-        lambda::_1,
-        promise))
-    .then(lambda::bind(os::close, resultPipe));
-
-  return promise->future();
+        lambda::_1));
 }
 
 
-void ExternalContainerizerProcess::_usage(
+Future<ResourceStatistics> ExternalContainerizerProcess::_usage(
     const ContainerID& containerId,
-    const Future<ResultFutures>& future,
-    Owned<Promise<ResourceStatistics> > promise)
+    const Future<ResultFutures>& future)
 {
   VLOG(1) << "Usage callback triggered on container '" << containerId << "'";
 
   if (!running.contains(containerId)) {
-    promise->fail("Container '" + containerId.value() + "' not running");
-    return;
+    return Failure("Container '" + containerId.value() + "' not running");
   }
 
   string result;
   Try<bool> support = commandSupported(future, result);
   if (support.isError()) {
-    promise->fail(support.error());
     terminate(containerId);
-    return;
+    return Failure(support.error());
   }
 
   ResourceStatistics statistics;
@@ -659,10 +631,9 @@ void ExternalContainerizerProcess::_usage(
     Result<os::Process> process = os::process(pid);
 
     if (!process.isSome()) {
-      promise->fail(process.isError()
+      return Failure(process.isError()
         ? process.error()
         : "Process does not exist or may have terminated already");
-      return;
     }
 
     statistics.set_timestamp(Clock::now().secs());
@@ -694,9 +665,8 @@ void ExternalContainerizerProcess::_usage(
     const Try<set<pid_t> >& children = os::children(pid, true);
 
     if (children.isError()) {
-      promise->fail("Failed to get children of "
+      return Failure("Failed to get children of "
         + stringify(pid) + ": " + children.error());
-      return;
     }
 
     // Aggregate the usage of all child processes.
@@ -735,10 +705,9 @@ void ExternalContainerizerProcess::_usage(
     VLOG(1) << "Usage supported by external containerizer";
 
     if (!statistics.ParseFromString(result)) {
-      promise->fail("Could not parse usage result protobuf (error: "
-        + initializationError(statistics) + ")");
       terminate(containerId);
-      return;
+      return Failure("Could not parse usage result protobuf (error: "
+        + initializationError(statistics) + ")");
     }
 
     VLOG(2) << "Usage result: '" << statistics.DebugString() << "'";
@@ -752,7 +721,7 @@ void ExternalContainerizerProcess::_usage(
             << "total CPU system usage "
             << statistics.cpus_system_time_secs();
 
-  promise->set(statistics);
+  return statistics;
 }
 
 
@@ -782,8 +751,7 @@ void ExternalContainerizerProcess::destroy(const ContainerID& containerId)
         PID<ExternalContainerizerProcess>(this),
         &ExternalContainerizerProcess::_destroy,
         containerId,
-        lambda::_1))
-    .then(lambda::bind(os::close, resultPipe));
+        lambda::_1));
 }
 
 
@@ -1039,6 +1007,18 @@ Try<pid_t> ExternalContainerizerProcess::invoke(
 }
 
 
+struct ChildFunction {
+  ChildFunction(const string& path) : path(path) {};
+
+  void operator ()()
+  {
+    ::chdir(path.c_str());
+  }
+
+  const string& path;
+};
+
+
 Try<pid_t> ExternalContainerizerProcess::invoke(
     const string& command,
     const vector<string>& parameters,
@@ -1080,35 +1060,19 @@ Try<pid_t> ExternalContainerizerProcess::invoke(
     }
   }
 
-  // chdir invocation to make sure the containerizer runs within
-  // its respective directory.
-  //string run = "cd " + sandboxes[containerId]->directory + " && ";
-
-  // Environment setup.
-  /*
-  if (environment.size()) {
-    vector<string> vars;
-    foreachpair (const string& key, const string& value, environment) {
-      vars.push_back(key + "=\"" + value + "\"");
-    }
-    run += "/usr/bin/env -i " + strings::join(" ", vars) + " ";
-  }
-  */
-
-  // External containerizer command invocation.
-  //run += strings::join(" ", argv);
-
-  VLOG(2) << "running: " << run;
-
-  // Fork exec of external process.
+  // Fork exec of external process. Run a chdir within the child-
+  // context.
   Try<Subprocess> external = subprocess(
       strings::join(" ", argv),
-      environment);
+      environment,
+      ChildFunction(sandboxes[containerId]->directory));
+
+  resultPipe = external.get().out();
+
   if (external.isError()) {
     return Error(string("Failed to execute external containerizer: ")
       + external.error());
   }
-  int outputPipe = external.get().in();
 
   // Transmit protobuf data via stdout.
   if (output.length() > 0) {
@@ -1116,85 +1080,14 @@ Try<pid_t> ExternalContainerizerProcess::invoke(
             << "(" << output.length() << " bytes)";
 
     ssize_t len = output.length();
-    if (write(outputPipe, output.c_str(), len) < len) {
-      perror("Failed to write protobuf to pipe");
-      abort();
+    if (write(external.get().in(), output.c_str(), len) < len) {
+      return Error("Failed to write protobuf to pipe");
     }
   }
 
-  resultPipe = external.get().out();
+  // We are done sending data to the external process, close the pipe.
+  os::close(external.get().in());
 
-  /*
-
-  // Fork exec of the external process.
-  pid_t pid;
-  if ((pid = fork()) == -1) {
-    perror("Failed to fork new containerizer");
-    abort();
-  }
-
-  if (pid > 0) {
-    // In parent process context.
-    os::close(childToParentPipe[1]);
-    os::close(parentToChildPipe[0]);
-
-    if (output.length() > 0) {
-      VLOG(2) << "Writing to child's standard input "
-              << "(" << output.length() << " bytes)";
-
-      ssize_t len = output.length();
-      if (write(parentToChildPipe[1], output.c_str(), len) < len) {
-        perror("Failed to write protobuf to pipe");
-        abort();
-      }
-    }
-
-    // Close write pipe as we are done sending.
-    os::close(parentToChildPipe[1]);
-
-    // Return child's standard output.
-    resultPipe = childToParentPipe[0];
-  } else {
-    // In child process context.
-
-    // We need to be rather careful at this point not to use async-
-    // unsafe code in between fork and exec. This is why there is e.g.
-    // no glog allowed in between fork and exec.
-
-    // We must not use os::close as it is not async-safe.
-    ::close(childToParentPipe[0]);
-    ::close(parentToChildPipe[1]);
-
-    // Put containerizer into its own process session to prevent its
-    // termination to be propagated all the way to its parent process
-    // (the slave).
-    if (::setsid() == -1) {
-      asyncSafeFatal("Could not put executor in its own session");
-    }
-
-    // Replace stdin and stdout.
-    ::dup2(parentToChildPipe[0], ::fileno(stdin));
-    ::dup2(childToParentPipe[1], ::fileno(stdout));
-
-    // Close pipes.
-    // NOTE: We must not use os::close as it is not async-safe.
-    ::close(childToParentPipe[1]);
-    ::close(parentToChildPipe[0]);
-
-    // Make sure the child process' current folder is its
-    // work-directory.
-    // NOTE: We must not use os::chdir as it is not async-safe.
-    if (::chdir(sandboxes[containerId]->directory.c_str()) < 0) {
-      asyncSafeFatal("Failed to chdir into work directory");
-    }
-
-    // Execute the containerizer command.
-    ::execvp(plainArgumentArray[0], plainArgumentArray);
-
-    // If we get here, the exec call failed.
-    asyncSafeFatal("Failed to execute the external containerizer");
-  }
-  */
   return external.get().pid();
 }
 
