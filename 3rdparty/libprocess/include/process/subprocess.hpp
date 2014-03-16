@@ -72,12 +72,6 @@ private:
 
 namespace internal {
 
-// See the comment below as to why subprocess is passed to cleanup.
-inline void cleanup(
-    const Future<Option<int> >& result,
-    Promise<Option<int> >* promise,
-    const Subprocess& subprocess);
-
 // Used to build the environment to pass to the subprocess.
 class Envp
 {
