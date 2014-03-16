@@ -56,7 +56,7 @@ Envp::Envp(const map<string, string>& env)
   int index = 0;
   foreachpair (const string& key, const string& value, env) {
     string entry = key + "=" + value;
-    envp_[index] = static_cast<char*>(malloc(entry.size() * sizeof(char)));
+    envp_[index] = static_cast<char*>(malloc((entry.size() + 1) * sizeof(char)));
     memcpy(envp_[index], entry.c_str(), entry.size() + 1);
     ++index;
   }
