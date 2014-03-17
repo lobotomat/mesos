@@ -152,7 +152,7 @@ AC_ARG_WITH([included-zookeeper],
             [], [with_included_zookeeper=yes])
 
 AC_ARG_WITH([leveldb],
-            AS_HELP_STRING([--with-leveldb],
+            AS_HELP_STRING([--with-leveldb@<:@=DIR@:>@],
                            [builds against a prefixed leveldb installation
                            *only* if proper is enabled]),
             [], [with_included_leveldb=yes])
@@ -253,26 +253,28 @@ AS_IF([test "x$enable_proper" = "xyes"],
 # extending it by /lib.
       [AS_IF([test "x$with_leveldb" = "xno"], [],
 	     [CPPFLAGS="${CPPFLAGS} -I${with_leveldb}/include"
-	      LDFLAGS="${LDFLAGS} -L${with_leveldb}/lib -lleveldb"])
+	      LDFLAGS="${LDFLAGS} -L${with_leveldb}/lib"])
 # Check if LevelDB headers and library can be located and if so,
-# disable building and using the bundled LevelDB.
+# disable building and using the bundled LevelDB but add it as a
+# library to be linked by default.
        AC_CHECK_HEADERS([leveldb/db.h],
 			[AC_CHECK_LIB([leveldb], [leveldb_open],
-				      [with_included_leveldb=no],
+				      [with_included_leveldb=no
+				       LDFLAGS="${LDFLAGS} -lleveldb"],
 				      [AC_MSG_ERROR([cannot find libleveldb
 -------------------------------------------------------------------
 libleveldb is required for mesos to build with proper enabled.
 
-You may want to specify the prefix path of your leveldb
-installation by suppyling --with-leveldb=PREFIX-PATH.
+You may want to specify the prefix path of your LevelDB
+installation by suppyling --with-leveldb=DIR.
 -------------------------------------------------------------------
 ])])],
 			[AC_MSG_ERROR([cannot find leveldb headers
 -------------------------------------------------------------------
 libleveldb is required for mesos to build with proper enabled.
 
-You may want to specify the prefix path of your leveldb
-installation by suppyling --with-leveldb=PREFIX-PATH.
+You may want to specify the prefix path of your LevelDB
+installation by suppyling --with-leveldb=DIR.
 -------------------------------------------------------------------
 ])])])
 
