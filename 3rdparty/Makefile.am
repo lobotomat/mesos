@@ -77,7 +77,11 @@ $(ZOOKEEPER)/src/c/libzookeeper_mt.la: $(ZOOKEEPER)-stamp
           $(MAKE) $(AM_MAKEFLAGS)
 
 # Dependencies for all-local.
-ALL_LOCAL = $(LEVELDB)/libleveldb.a
+ALL_LOCAL = # Initialize ALL_LOCAL so we can add to it.
+
+if WITH_INCLUDED_LEVELDB
+  ALL_LOCAL += $(LEVELDB)/libleveldb.a
+endif
 
 if HAS_PYTHON
   ALL_LOCAL += $(DISTRIBUTE_EGG)

@@ -85,7 +85,10 @@ MESOS_CPPFLAGS += -I../$(BOOST)
 MESOS_CPPFLAGS += -I../$(PROTOBUF)/src
 MESOS_CPPFLAGS += -I../$(PICOJSON)
 MESOS_CPPFLAGS += -I../$(GLOG)/src
-MESOS_CPPFLAGS += -I../$(LEVELDB)/include
+
+if WITH_INCLUDED_LEVELDB
+  MESOS_CPPFLAGS += -I../$(LEVELDB)/include
+endif
 
 if WITH_INCLUDED_ZOOKEEPER
   MESOS_CPPFLAGS += -I../$(ZOOKEEPER)/include
@@ -388,7 +391,9 @@ libmesos_la_LIBADD += ../$(GLOG)/libglog.la
 # We need to directly include the leveldb library in order to avoid
 # the installed libmesos.la file to include leveldb in
 # 'dependency_libs' (via '-L../3rdparty/leveldb -lleveldb').
-libmesos_la_LIBADD += ../$(LEVELDB)/libleveldb.a
+if WITH_INCLUDED_LEVELDB
+  libmesos_la_LIBADD += ../$(LEVELDB)/libleveldb.a
+endif
 
 if WITH_INCLUDED_ZOOKEEPER
   libmesos_la_LIBADD += ../$(ZOOKEEPER)/libzookeeper_mt.la

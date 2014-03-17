@@ -72,12 +72,18 @@ LIBRARY_DIRS = []
 EXTRA_OBJECTS = [
   os.path.join(abs_top_builddir, 'src', '.libs', 'libmesos_no_3rdparty.a'),
   os.path.join(abs_top_builddir, protobuf, 'src', '.libs', 'libprotobuf.a'),
-  os.path.join(abs_top_builddir, leveldb, 'libleveldb.a'),
   os.path.join(abs_top_builddir, zookeeper, '.libs', 'libzookeeper_mt.a'),
   os.path.join(abs_top_builddir, libprocess, '.libs', 'libprocess.a'),
   os.path.join(abs_top_builddir, glog, '.libs', 'libglog.a'),
   os.path.join(abs_top_builddir, libev, '.libs', 'libev.a'),
 ]
+
+# For leveldb, we need to check for the presence of libleveldb.a, since
+# it is possible to disable leveldb inside mesos.
+libleveldb = os.path.join(abs_top_builddir, leveldb, 'libleveldb.a')
+
+if os.path.exists(libleveldb):
+  EXTRA_OBJECTS.append(libleveldb)
 
 # For gperftools, we need to check for the presence of libprofiler.a, since
 # it is possible to disable perftools inside libprocess.
@@ -88,6 +94,11 @@ if os.path.exists(libprofiler):
   EXTRA_OBJECTS.append(libprofiler)
 
 EXTRA_LINK_ARGS = []
+
+# Add any flags from LDFLAGS.
+if 'LDFLAGS' in os.environ:
+  for flag in os.environ['LDFLAGS'].split():
+    EXTRA_LINK_ARGS.append(flag)
 
 # Add any libraries from LIBS.
 if 'LIBS' in os.environ:

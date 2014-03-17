@@ -137,6 +137,11 @@ AC_ARG_ENABLE([optimize],
                              [don't try to compile with optimizations]),
               [], [enable_optimize=yes])
 
+AC_ARG_ENABLE([proper],
+              AS_HELP_STRING([--enable-proper],
+                             [build against system dependencies]),
+              [], [enable_proper=no])
+
 AC_ARG_WITH([included-zookeeper],
             AS_HELP_STRING([--without-included-zookeeper],
                            [excludes building and using the included ZooKeeper
@@ -144,7 +149,13 @@ AC_ARG_WITH([included-zookeeper],
                            however, that no attempt is made to find the package
                            and explicitly setting CPPFLAGS and LDFLAGS as
                            appropriate may be necessary)]),
-             [], [with_included_zookeeper=yes])
+            [], [with_included_zookeeper=yes])
+
+AC_ARG_WITH([leveldb],
+            AS_HELP_STRING([--with-leveldb],
+                           [builds against a prefixed leveldb installation
+                           *only* if proper is enabled]),
+            [], [with_included_leveldb=yes])
 
 AC_ARG_WITH([cxx11],
             AS_HELP_STRING([--without-cxx11],
@@ -232,6 +243,38 @@ if test "x$enable_optimize" = "xyes"; then
     CXXFLAGS="$CXXFLAGS -g2 -O2"
   fi
 fi
+
+
+# Check for use of installed libraries instead of the bundled
+# versions.
+AS_IF([test "x$enable_proper" = "xyes"],
+# Check if LevelDB prefix path was supplied and if so, add it to
+# CPPFLAGS while extending it by /include and to LDFLAGS while
+# extending it by /lib.
+      [AS_IF([test "x$with_leveldb" = "xno"], [],
+	     [CPPFLAGS="${CPPFLAGS} -I${with_leveldb}/include"
+	      LDFLAGS="${LDFLAGS} -L${with_leveldb}/lib"])
+# Check if LevelDB headers and library can be located and if so,
+# disable building and using the bundled LevelDB.
+       AC_CHECK_HEADERS([leveldb/db.h],
+			[AC_CHECK_LIB([leveldb], [leveldb_open],
+				      [with_included_leveldb=no],
+				      [AC_MSG_ERROR([cannot find libleveldb
+-------------------------------------------------------------------
+libleveldb is required for mesos to build with proper enabled.
+
+You may want to specify the prefix path of your leveldb
+installation by suppyling --with-leveldb=PREFIX-PATH.
+-------------------------------------------------------------------
+])])],
+			[AC_MSG_ERROR([cannot find leveldb headers
+-------------------------------------------------------------------
+libleveldb is required for mesos to build with proper enabled.
+
+You may want to specify the prefix path of your leveldb
+installation by suppyling --with-leveldb=PREFIX-PATH.
+-------------------------------------------------------------------
+])])])
 
 
 # Check if we're using clang.
@@ -628,6 +671,8 @@ libcurl is required for mesos to build.
 AM_CONDITIONAL([WITH_INCLUDED_ZOOKEEPER],
                [test "x$with_included_zookeeper" = "xyes"])
 
+AM_CONDITIONAL([WITH_INCLUDED_LEVELDB],
+	       [test "x$with_included_leveldb" = "xyes"])
 
 # Check if we should/can build with C++11.
 if test "x$with_cxx11" = "xyes"; then
