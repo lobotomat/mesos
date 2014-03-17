@@ -253,7 +253,7 @@ AS_IF([test "x$enable_proper" = "xyes"],
 # extending it by /lib.
       [AS_IF([test "x$with_leveldb" = "xno"], [],
 	     [CPPFLAGS="${CPPFLAGS} -I${with_leveldb}/include"
-	      LDFLAGS="${LDFLAGS} -L${with_leveldb}/lib"])
+	      LDFLAGS="${LDFLAGS} -L${with_leveldb}/lib -lleveldb"])
 # Check if LevelDB headers and library can be located and if so,
 # disable building and using the bundled LevelDB.
        AC_CHECK_HEADERS([leveldb/db.h],
