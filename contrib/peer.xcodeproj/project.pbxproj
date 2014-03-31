@@ -1,0 +1,329 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		BB1B15A518E8E14A0015CCB3 /* libtorrent-rasterbar.7.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BB1B15A318E8E1250015CCB3 /* libtorrent-rasterbar.7.dylib */; };
+		BB1B15AA18E8E1DC0015CCB3 /* peer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BB1B15A918E8E1DC0015CCB3 /* peer.cpp */; };
+		BB1B15AC18E8EB9D0015CCB3 /* libprocess.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BB1B15AB18E8EB9D0015CCB3 /* libprocess.dylib */; };
+		BB1B15B018E8F01D0015CCB3 /* libglog.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BB1B15AF18E8F01D0015CCB3 /* libglog.0.dylib */; };
+		BBCFBDE718E9BA4D00B1DBC3 /* libcrypto.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BBCFBDE618E9BA4D00B1DBC3 /* libcrypto.dylib */; };
+		BBCFBDE918E9BA5500B1DBC3 /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BBCFBDE818E9BA5500B1DBC3 /* libz.dylib */; };
+		BBCFBDEB18E9BA6300B1DBC3 /* libssl.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BBCFBDEA18E9BA6300B1DBC3 /* libssl.dylib */; };
+		BBCFBDED18E9BA8200B1DBC3 /* libboost_system-mt.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BBCFBDEC18E9BA8200B1DBC3 /* libboost_system-mt.dylib */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		BB1B157D18E8D2560015CCB3 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		BB1B157F18E8D2560015CCB3 /* peer */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = peer; sourceTree = BUILT_PRODUCTS_DIR; };
+		BB1B159B18E8D4130015CCB3 /* peer.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = peer.hpp; path = ../src/torrent/peer.hpp; sourceTree = "<group>"; };
+		BB1B15A318E8E1250015CCB3 /* libtorrent-rasterbar.7.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libtorrent-rasterbar.7.dylib"; path = "/usr/local/lib/libtorrent-rasterbar.7.dylib"; sourceTree = "<absolute>"; };
+		BB1B15A918E8E1DC0015CCB3 /* peer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = peer.cpp; path = ../src/torrent/peer.cpp; sourceTree = "<group>"; };
+		BB1B15AB18E8EB9D0015CCB3 /* libprocess.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libprocess.dylib; path = "../../../Library/Developer/Xcode/DerivedData/mesos-ahbuasubhlqkvtddrrplpcfoauwm/Build/Products/Debug/libprocess.dylib"; sourceTree = "<group>"; };
+		BB1B15AF18E8F01D0015CCB3 /* libglog.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libglog.0.dylib; path = /usr/local/Cellar/glog/0.3.3/lib/libglog.0.dylib; sourceTree = "<absolute>"; };
+		BBCFBDE618E9BA4D00B1DBC3 /* libcrypto.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libcrypto.dylib; path = usr/lib/libcrypto.dylib; sourceTree = SDKROOT; };
+		BBCFBDE818E9BA5500B1DBC3 /* libz.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libz.dylib; path = usr/lib/libz.dylib; sourceTree = SDKROOT; };
+		BBCFBDEA18E9BA6300B1DBC3 /* libssl.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libssl.dylib; path = usr/lib/libssl.dylib; sourceTree = SDKROOT; };
+		BBCFBDEC18E9BA8200B1DBC3 /* libboost_system-mt.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libboost_system-mt.dylib"; path = "/usr/local/Cellar/boost/1.55.0_1/lib/libboost_system-mt.dylib"; sourceTree = "<absolute>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		BB1B157C18E8D2560015CCB3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BBCFBDED18E9BA8200B1DBC3 /* libboost_system-mt.dylib in Frameworks */,
+				BBCFBDEB18E9BA6300B1DBC3 /* libssl.dylib in Frameworks */,
+				BBCFBDE918E9BA5500B1DBC3 /* libz.dylib in Frameworks */,
+				BBCFBDE718E9BA4D00B1DBC3 /* libcrypto.dylib in Frameworks */,
+				BB1B15B018E8F01D0015CCB3 /* libglog.0.dylib in Frameworks */,
+				BB1B15AC18E8EB9D0015CCB3 /* libprocess.dylib in Frameworks */,
+				BB1B15A518E8E14A0015CCB3 /* libtorrent-rasterbar.7.dylib in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		BB1B157618E8D2560015CCB3 = {
+			isa = PBXGroup;
+			children = (
+				BB1B15A918E8E1DC0015CCB3 /* peer.cpp */,
+				BB1B158118E8D2560015CCB3 /* src */,
+				BB1B158E18E8D2D80015CCB3 /* include */,
+				BB1B15A618E8E1910015CCB3 /* libs */,
+				BB1B158018E8D2560015CCB3 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		BB1B158018E8D2560015CCB3 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				BB1B157F18E8D2560015CCB3 /* peer */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		BB1B158118E8D2560015CCB3 /* src */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = src;
+			path = peer;
+			sourceTree = "<group>";
+		};
+		BB1B158E18E8D2D80015CCB3 /* include */ = {
+			isa = PBXGroup;
+			children = (
+				BB1B159B18E8D4130015CCB3 /* peer.hpp */,
+			);
+			name = include;
+			sourceTree = "<group>";
+		};
+		BB1B15A618E8E1910015CCB3 /* libs */ = {
+			isa = PBXGroup;
+			children = (
+				BBCFBDEC18E9BA8200B1DBC3 /* libboost_system-mt.dylib */,
+				BBCFBDEA18E9BA6300B1DBC3 /* libssl.dylib */,
+				BBCFBDE818E9BA5500B1DBC3 /* libz.dylib */,
+				BBCFBDE618E9BA4D00B1DBC3 /* libcrypto.dylib */,
+				BB1B15AF18E8F01D0015CCB3 /* libglog.0.dylib */,
+				BB1B15AB18E8EB9D0015CCB3 /* libprocess.dylib */,
+				BB1B15A318E8E1250015CCB3 /* libtorrent-rasterbar.7.dylib */,
+			);
+			name = libs;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		BB1B157E18E8D2560015CCB3 /* peer */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BB1B158818E8D2560015CCB3 /* Build configuration list for PBXNativeTarget "peer" */;
+			buildPhases = (
+				BB1B157B18E8D2560015CCB3 /* Sources */,
+				BB1B157C18E8D2560015CCB3 /* Frameworks */,
+				BB1B157D18E8D2560015CCB3 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = peer;
+			productName = peer;
+			productReference = BB1B157F18E8D2560015CCB3 /* peer */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		BB1B157718E8D2560015CCB3 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0510;
+				ORGANIZATIONNAME = "Till Toenshoff";
+			};
+			buildConfigurationList = BB1B157A18E8D2560015CCB3 /* Build configuration list for PBXProject "peer" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = BB1B157618E8D2560015CCB3;
+			productRefGroup = BB1B158018E8D2560015CCB3 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				BB1B157E18E8D2560015CCB3 /* peer */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		BB1B157B18E8D2560015CCB3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BB1B15AA18E8E1DC0015CCB3 /* peer.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		BB1B158618E8D2560015CCB3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"TORRENT_BUILDING_SHARED=1",
+					"foreach=BOOST_FOREACH",
+					"BOOST_ASIO_DYN_LINK=1",
+					"BOOST_ASIO_ENABLE_CANCELIO=1",
+					"BOOST_EXCEPTION_DISABLE=1",
+					"BOOST_ASIO_HASH_MAP_BUCKETS=1021",
+					"WITH_SHIPPED_GEOIP_H=1",
+					"TORRENT_STATS=1",
+					"TORRENT_LOGGING=1",
+					"TORRENT_BUILDING_SHARED=1",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
+					/usr/local/include,
+					../3rdparty/libprocess/include,
+					../3rdparty/libprocess/3rdparty/stout/include,
+					"../build/3rdparty/libprocess/3rdparty/picojson-4f93734",
+				);
+				LIBRARY_SEARCH_PATHS = /usr/local/lib;
+				MACOSX_DEPLOYMENT_TARGET = 10.9;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		BB1B158718E8D2560015CCB3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"TORRENT_BUILDING_SHARED=1",
+					"foreach=BOOST_FOREACH",
+					"BOOST_ASIO_DYN_LINK=1",
+					"BOOST_ASIO_ENABLE_CANCELIO=1",
+					"BOOST_EXCEPTION_DISABLE=1",
+					"BOOST_ASIO_HASH_MAP_BUCKETS=1021",
+					"WITH_SHIPPED_GEOIP_H=1",
+					"TORRENT_STATS=1",
+					"TORRENT_LOGGING=1",
+					"TORRENT_BUILDING_SHARED=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
+					/usr/local/include,
+					../3rdparty/libprocess/include,
+					../3rdparty/libprocess/3rdparty/stout/include,
+					"../build/3rdparty/libprocess/3rdparty/picojson-4f93734",
+				);
+				LIBRARY_SEARCH_PATHS = /usr/local/lib;
+				MACOSX_DEPLOYMENT_TARGET = 10.9;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		BB1B158918E8D2560015CCB3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/usr/local/Cellar/boost/1.55.0_1/lib,
+					"$(USER_LIBRARY_DIR)/Developer/Xcode/DerivedData/mesos-ahbuasubhlqkvtddrrplpcfoauwm/Build/Products/Debug",
+					/usr/local/Cellar/glog/0.3.3/lib,
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		BB1B158A18E8D2560015CCB3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/usr/local/Cellar/boost/1.55.0_1/lib,
+					"$(USER_LIBRARY_DIR)/Developer/Xcode/DerivedData/mesos-ahbuasubhlqkvtddrrplpcfoauwm/Build/Products/Debug",
+					/usr/local/Cellar/glog/0.3.3/lib,
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		BB1B157A18E8D2560015CCB3 /* Build configuration list for PBXProject "peer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BB1B158618E8D2560015CCB3 /* Debug */,
+				BB1B158718E8D2560015CCB3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BB1B158818E8D2560015CCB3 /* Build configuration list for PBXNativeTarget "peer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BB1B158918E8D2560015CCB3 /* Debug */,
+				BB1B158A18E8D2560015CCB3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = BB1B157718E8D2560015CCB3 /* Project object */;
+}
