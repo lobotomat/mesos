@@ -27,6 +27,8 @@
 
 #include "hdfs/hdfs.hpp"
 
+//#include "torrent/client.hpp"
+
 using namespace mesos;
 
 using std::string;
@@ -105,6 +107,20 @@ Try<string> fetch(
     }
 
     return path;
+    /*
+  } else if (strings::startsWith(uri, "magnet:")) {
+    TorrentClient torrent;
+
+    LOG(INFO) << "Downloading resource from '" << uri
+              << "' to '" << path << "'";
+    Try<string> path = torrent.copyToLocal(uri, directoy);
+    if (path.isError()) {
+      LOG(ERROR) << "Torrent copyToLocal failed: " << result.error();
+      return Error(path.error());
+    }
+
+    return path.get();
+    */
   } else if (strings::startsWith(uri, "http://") ||
              strings::startsWith(uri, "https://") ||
              strings::startsWith(uri, "ftp://") ||
