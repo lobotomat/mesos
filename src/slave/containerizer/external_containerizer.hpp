@@ -200,11 +200,6 @@ private:
       const ContainerID& containerId,
       const process::Future<Option<int> >& future);
 
-  // Call back for when the pluggable containerizer process status has
-  // changed.
-  void reaped(const ContainerID& containerId,
-      const process::Future<Option<int> >& status);
-
   // TODO(tillt): FIXME!
   Try<std::string> isDone(
       const process::Future<ResultFutures>& future);

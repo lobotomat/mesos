@@ -76,6 +76,8 @@ def send(data):
 # Expects to receive an ExternalTask protobuf via stdin and will deliver
 # an ExternalStatus protobuf via stdout when successful.
 def launch():
+    import fcntl
+
     try:
         data = receive()
         if len(data) == 0:
@@ -95,10 +97,23 @@ def launch():
                        "-c",
                        launch.task.command.value]
 
-        proc = subprocess.Popen(command, env=os.environ.copy())
+            lock_dir = "/tmp/mesos-test-containerizer"
+            subprocess.check_call(["mkdir", "-p", lock_dir])
 
-# FIXME(*): Add pid persisting here. Something along the lines of
-# a mktemp + conatainerId + pid lock?!
+            lock = os.path.join(lock_dir, launch.container_id.value)
+
+            pid = os.fork()
+            if pid == 0:
+                # We are in the child.
+                proc = subprocess.Popen(command, env=os.environ.copy())
+
+                print >> sys.stderr, "!executor launched!"
+
+                with open(lock, "w+") as lk:
+                    fcntl.flock(lk, fcntl.LOCK_EX)
+                    returncode = proc.wait()
+                    lk.write(str(returncode) + "\n")
+                    sys.exit(returncode)
 
     except google.protobuf.message.DecodeError:
         print >> sys.stderr, "Could not deserialise Launch protobuf"
@@ -125,10 +140,10 @@ def update():
             return 1
 
         update = containerizer_pb2.Update()
-        resources.ParseFromString(data)
+        update.ParseFromString(data)
 
         print >> sys.stderr, "Received "                            \
-                           + str(len(update.resources.resource))    \
+                           + str(len(update.resources))    \
                            + " resource elements."
 
     except google.protobuf.message.DecodeError:
@@ -212,6 +227,7 @@ def destroy():
 # filled with the information gathered from launch's waitpid via
 # stdout.
 def wait():
+    import fcntl
     try:
         data = receive()
         if len(data) == 0:
@@ -219,7 +235,16 @@ def wait():
         containerId = mesos_pb2.ContainerID()
         containerId.ParseFromString(data)
 
-#FIXME(*): Add wait reaping of the executor here.
+        lock_dir = "/tmp/mesos-test-containerizer"
+        lock = os.path.join(lock_dir, containerId.value)
+
+        print >> sys.stderr, "!blocking wait!"
+
+        # Obtain shared lock and read exit code from file.
+        with open(lock, "r") as lk:
+            fcntl.flock(lk, fcntl.LOCK_SH) # NB: shared lock
+
+        return int(lk.read())
 
     except google.protobuf.message.DecodeError:
         print >> sys.stderr, "Could not deserialise ContainerID protobuf."
@@ -229,7 +254,7 @@ def wait():
         print >> sys.stderr, e.strerror
         return 1
 
-    return 0
+    return 1
 
 
 if __name__ == "__main__":
