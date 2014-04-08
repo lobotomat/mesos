@@ -156,82 +156,8 @@ ExternalContainerizerProcess::ExternalContainerizerProcess(
 Future<Nothing> ExternalContainerizerProcess::recover(
     const Option<state::SlaveState>& state)
 {
-  // Filter the executor run states that we attempt to recover and do
-  // so.
-  /*
-  if (state.isSome()) {
-    foreachvalue (const FrameworkState& framework, state.get().frameworks) {
-      foreachvalue (const ExecutorState& executor, framework.executors) {
-        LOG(INFO) << "Recovering executor '" << executor.id
-                  << "' of framework " << framework.id;
-
-        if (executor.info.isNone()) {
-          LOG(WARNING) << "Skipping recovery of executor '" << executor.id
-                       << "' of framework " << framework.id
-                       << " because its info could not be recovered";
-          continue;
-        }
-
-        if (executor.latest.isNone()) {
-          LOG(WARNING) << "Skipping recovery of executor '" << executor.id
-                       << "' of framework " << framework.id
-                       << " because its latest run could not be recovered";
-          continue;
-        }
-
-        // We are only interested in the latest run of the executor!
-        const ContainerID& containerId = executor.latest.get();
-        Option<RunState> run = executor.runs.get(containerId);
-        CHECK_SOME(run);
-
-        // We need the pid so the reaper can monitor the executor so skip this
-        // executor if it's not present. This is not an error because the slave
-        // will try to wait on the container which will return a failed
-        // Termination and everything will get cleaned up.
-        if (!run.get().forkedPid.isSome()) {
-          continue;
-        }
-
-        if (run.get().completed) {
-          LOG(INFO) << "Skipping recovery of executor '" << executor.id
-                    << "' of framework " << framework.id
-                    << " because its latest run '" << containerId << "'"
-                    << " is completed";
-          continue;
-        }
-
-        const pid_t pid(run.get().forkedPid.get());
-        containers.put(containerId, Owned<Container>(new Container(pid)));
-
-        process::reap(pid)
-          .onAny(defer(
-            PID<ExternalContainerizerProcess>(this),
-            &ExternalContainerizerProcess::reaped,
-            containerId,
-            lambda::_1));
-
-        // Recreate the sandbox information.
-        // TODO (tillt): This recreates logic that is supposed to be
-        // further up, within the slave implementation.
-        const string& directory = paths::createExecutorDirectory(
-          flags.work_dir,
-          state.get().id,
-          framework.id,
-          executor.id,
-          containerId);
-
-        CHECK(framework.info.isSome());
-
-        const Option<string>& user = flags.switch_user
-          ? Option<string>(framework.info.get().user()) : None();
-
-        sandboxes.put(
-          containerId,
-          Owned<Sandbox>(new Sandbox(directory, user)));
-      }
-    }
-  }
-*/
+  // TODO(tillt): Forward the recover command to the external
+  // containerizer.
   return Nothing();
 }
 
@@ -304,29 +230,6 @@ Future<ExecutorInfo> ExternalContainerizerProcess::launch(
   launch.set_checkpoint(checkpoint);
   launch.set_mesos_executor_path(
       path::join(flags.launcher_dir, "mesos-executor"));
-
-  // Checkpoint the lauch intend for this containerId if requested.
-  /*
-  if (checkpoint) {
-    const string& path = slave::paths::getForkedPidPath(
-        slave::paths::getMetaRootDir(flags.work_dir),
-        slaveId,
-        frameworkId,
-        executor.executor_id(),
-        containerId);
-
-    LOG(INFO) << "Checkpointing container '" << containerId << "' "
-              << "launch intend to '" << path <<  "'";
-
-    Try<Nothing> checkpointed = slave::state::checkpoint(path, launch);
-
-    if (checkpointed.isError()) {
-      terminate(containerId);
-      return Failure("Failed to checkpoint launch intend '"
-                    + containerId.value() + "' to '" + path + "'");
-    }
-  }
-  */
 
   Try<Subprocess> invoked = invoke(
       "launch",
