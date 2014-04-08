@@ -311,7 +311,7 @@ Future<ExecutorInfo> ExternalContainerizerProcess::launch(
         slave::paths::getMetaRootDir(flags.work_dir),
         slaveId,
         frameworkId,
-        executorInfo.executor_id(),
+        executor.executor_id(),
         containerId);
 
     LOG(INFO) << "Checkpointing container '" << containerId << "' "
@@ -322,7 +322,7 @@ Future<ExecutorInfo> ExternalContainerizerProcess::launch(
     if (checkpointed.isError()) {
       terminate(containerId);
       return Failure("Failed to checkpoint launch intend '"
-        + containerId.value() + "' to '" + path "'");
+                    + containerId.value() + "' to '" + path + "'");
     }
   }
 
@@ -398,14 +398,14 @@ Future<containerizer::Termination> ExternalContainerizerProcess::wait(
       + "' failed (error: " + invoked.error() + ")");
   }
 
-  invoked.get().status()
+  containers[containerId]->pid = invoked.get().pid();
+
+  await(read(invoked.get().out()), invoked.get().status())
     .onAny(defer(
         PID<ExternalContainerizerProcess>(this),
         &ExternalContainerizerProcess::_wait,
         containerId,
         lambda::_1));
-
-  containers[containerId]->pid = invoked.get().pid();
 
   return containers[containerId]->termination.future();
 }
@@ -413,7 +413,7 @@ Future<containerizer::Termination> ExternalContainerizerProcess::wait(
 
 void ExternalContainerizerProcess::_wait(
     const ContainerID& containerId,
-    const Future<Option<int> >& status)
+    const Future<ResultFutures>& future)
 {
   VLOG(1) << "Wait callback triggered on container '" << containerId << "'";
 
@@ -424,41 +424,24 @@ void ExternalContainerizerProcess::_wait(
 
   Owned<Container> container = containers[containerId];
 
-  VLOG(2) << "future on containerId '" << containerId
-          << "' has reached: "
-          << (status.isReady() ? "READY" :
-             status.isFailed() ? "FAILED: " + status.failure() :
-             "DISCARDED");
+  Future<containerizer::Termination> termination;
 
-  Future<containerizer::Termination> future;
-
-  if (!status.isReady()) {
-    // Something has gone wrong, probably an unsuccessful terminate().
-    future = Failure(
-        "Failed to get status: " +
-        (status.isFailed() ? status.failure() : "discarded"));
+  Try<string> result = isDone(future);
+  if (result.isError()) {
+    termination = Failure("Failed to get result (error: "
+                         + result.error() + ")");
   } else {
-    LOG(INFO) << "Container '" << containerId << "' "
-              << "has terminated with "
-              << (status.get().isSome() ?
-                  "status-code: " + stringify(status.get().get()) :
-                  "no result");
-
-    bool killed = false;
-    if (status.get().isSome()) {
-      killed = !WIFEXITED(status.get().get());
+    containerizer::Termination term;
+    if (!term.ParseFromString(result.get())) {
+      termination = Failure("Could not parse usage result protobuf (error: "
+                           + term.InitializationErrorString() + ")");
+    } else {
+      termination = term;
     }
-    containerizer::Termination termination;
-    termination.set_killed(killed);
-    termination.set_message(killed ? "killed" : "terminated");
-    if (status.get().isSome()) {
-      termination.set_status(status.get().get());
-    }
-    future = termination;
   }
 
   // Set the promise to alert others waiting on this container.
-  container->termination.set(future);
+  container->termination.set(termination);
 
   // Ensure someone notices this termination by deferring final clean
   // up until the container has been waited on.

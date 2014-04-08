@@ -43,7 +43,7 @@ def use(container, methods):
     return out
 
 
-# Read a data chunk prepended by its total size from stdin.
+# Read a data chunk prefixed by its total size from stdin.
 def receive():
     # Read size (size_t = unsigned long long => 8 bytes).
     size = struct.unpack('Q', sys.stdin.read(8))
@@ -142,8 +142,8 @@ def update():
         update = containerizer_pb2.Update()
         update.ParseFromString(data)
 
-        print >> sys.stderr, "Received "                            \
-                           + str(len(update.resources))    \
+        print >> sys.stderr, "Received "                \
+                           + str(len(update.resources)) \
                            + " resource elements."
 
     except google.protobuf.message.DecodeError:
@@ -172,18 +172,18 @@ def usage():
         containerId = mesos_pb2.ContainerID()
         containerId.ParseFromString(data)
 
-        statistics = mesos_pb2.ResourceStatistics();
+        statistics = mesos_pb2.ResourceStatistics()
 
-        statistics.timestamp = time.time();
+        statistics.timestamp = time.time()
 
         # Cook up some fake data.
-        statistics.mem_rss_bytes = 1073741824;
-        statistics.mem_limit_bytes = 1073741824;
-        statistics.cpus_limit = 2;
-        statistics.cpus_user_time_secs = 0.12;
-        statistics.cpus_system_time_secs = 0.5;
+        statistics.mem_rss_bytes = 1073741824
+        statistics.mem_limit_bytes = 1073741824
+        statistics.cpus_limit = 2
+        statistics.cpus_user_time_secs = 0.12
+        statistics.cpus_system_time_secs = 0.5
 
-        send(statistics.SerializeToString());
+        send(statistics.SerializeToString())
 
     except google.protobuf.message.DecodeError:
         print >> sys.stderr, "Could not deserialise ContainerID protobuf."
@@ -228,6 +228,7 @@ def destroy():
 # stdout.
 def wait():
     import fcntl
+
     try:
         data = receive()
         if len(data) == 0:
@@ -242,12 +243,23 @@ def wait():
 
         # Obtain shared lock and read exit code from file.
         with open(lock, "r") as lk:
-            fcntl.flock(lk, fcntl.LOCK_SH) # NB: shared lock
+            fcntl.flock(lk, fcntl.LOCK_SH)
+        status = int(lk.read())
 
-        return int(lk.read())
+        # Deliver the termination protobuf back to the slave.
+        termination = containerizer_pb2.Termination()
+        termination.killed = false
+        termination.status = status
+        termination.message = ""
+
+        send(termination.SerializeToString())
 
     except google.protobuf.message.DecodeError:
         print >> sys.stderr, "Could not deserialise ContainerID protobuf."
+        return 1
+
+    except google.protobuf.message.EncodeError:
+        print >> sys.stderr, "Could not serialise Termination protobuf."
         return 1
 
     except OSError as e:

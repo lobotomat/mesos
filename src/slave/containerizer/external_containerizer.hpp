@@ -186,7 +186,7 @@ private:
 
   void _wait(
       const ContainerID& containerId,
-      const process::Future<Option<int> >& future);
+      const process::Future<ResultFutures>& future);
 
   process::Future<Nothing> _update(
       const ContainerID& containerId,
