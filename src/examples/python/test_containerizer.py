@@ -27,12 +27,12 @@
 # destroy < ContainerID
 #
 
+import fcntl
+import multiprocessing
 import os
 import subprocess
 import sys
 import struct
-
-import multiprocessing
 import time
 
 # Render a string describing how to use this script.
@@ -76,9 +76,9 @@ def send(data):
 # Expects to receive an ExternalTask protobuf via stdin and will deliver
 # an ExternalStatus protobuf via stdout when successful.
 def launch():
-    import fcntl
-
     try:
+        print >> sys.stderr, "!launching..!"
+
         data = receive()
         if len(data) == 0:
             return 1
@@ -102,15 +102,15 @@ def launch():
 
             lock = os.path.join(lock_dir, launch.container_id.value)
 
-            pid = os.fork()
-            if pid == 0:
-                # We are in the child.
-                proc = subprocess.Popen(command, env=os.environ.copy())
+            with open(lock, "w+") as lk:
+                fcntl.flock(lk, fcntl.LOCK_EX)
+                pid = os.fork()
+                if pid == 0:
+                    # We are in the child.
+                    proc = subprocess.Popen(command, env=os.environ.copy())
 
-                print >> sys.stderr, "!executor launched!"
+                    print >> sys.stderr, "!executor launched!"
 
-                with open(lock, "w+") as lk:
-                    fcntl.flock(lk, fcntl.LOCK_EX)
                     returncode = proc.wait()
                     lk.write(str(returncode) + "\n")
                     sys.exit(returncode)
@@ -201,8 +201,6 @@ def usage():
 
 
 # Terminate the containerized executor.
-# A complete implementation would deliver an ExternalStatus protobuf
-# when succesful.
 def destroy():
     try:
         data = receive()
@@ -222,13 +220,30 @@ def destroy():
     return 0
 
 
-# Get the containerized executor's Termination.
-# A complete implementation would deliver a Termination protobuf
-# filled with the information gathered from launch's waitpid via
-# stdout.
-def wait():
-    import fcntl
+# Recover the containerized executor.
+def recover():
+    try:
+        data = receive()
+        if len(data) == 0:
+            return 1
+        containerId = mesos_pb2.ContainerID()
+        containerId.ParseFromString(data)
 
+    except google.protobuf.message.DecodeError:
+        print >> sys.stderr, "Could not deserialise ContainerID protobuf."
+        return 1
+
+    except OSError as e:
+        print >> sys.stderr, e.strerror
+        return 1
+
+    return 0
+
+
+# Get the containerized executor's Termination.
+# Delivers a Termination protobuf filled with the information
+# gathered from launch's wait via stdout.
+def wait():
     try:
         data = receive()
         if len(data) == 0:
@@ -273,6 +288,7 @@ if __name__ == "__main__":
     methods = { "launch":  launch,
                 "update":  update,
                 "destroy": destroy,
+                "recover": recover,
                 "usage":   usage,
                 "wait":    wait }
 

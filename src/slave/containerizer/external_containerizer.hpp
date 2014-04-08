@@ -151,7 +151,7 @@ private:
     pid_t pid;
 
     process::Promise<containerizer::Termination> termination;
-    process::Promise<bool> waited;
+    process::Promise<bool> launched;
 
     Resources resources;
   };

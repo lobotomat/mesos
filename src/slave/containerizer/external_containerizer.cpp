@@ -306,6 +306,7 @@ Future<ExecutorInfo> ExternalContainerizerProcess::launch(
       path::join(flags.launcher_dir, "mesos-executor"));
 
   // Checkpoint the lauch intend for this containerId if requested.
+  /*
   if (checkpoint) {
     const string& path = slave::paths::getForkedPidPath(
         slave::paths::getMetaRootDir(flags.work_dir),
@@ -325,6 +326,7 @@ Future<ExecutorInfo> ExternalContainerizerProcess::launch(
                     + containerId.value() + "' to '" + path + "'");
     }
   }
+  */
 
   Try<Subprocess> invoked = invoke(
       "launch",
@@ -337,7 +339,7 @@ Future<ExecutorInfo> ExternalContainerizerProcess::launch(
       + "' failed (error: " + invoked.error() + ")");
   }
 
-  // Record the successful container launch.
+  // Record the container launch intend.
   containers.put(containerId, Owned<Container>(new Container));
 
   // Read from the result-pipe and invoke callbacks when reaching EOF.
@@ -374,6 +376,9 @@ Future<ExecutorInfo> ExternalContainerizerProcess::_launch(
     return Failure(done.error());
   }
 
+  // Container launched.
+  containers[containerId]->launched.set(true);
+
   VLOG(1) << "Launch finishing up for container '" << containerId << "'";
   return executorInfo;
 }
@@ -389,10 +394,18 @@ Future<containerizer::Termination> ExternalContainerizerProcess::wait(
     return Failure("Container '" + containerId.value() + "' not running");
   }
 
+  // Make sure that launch has actually completed before we start wait.
+  if (containers[containerId]->launched.future().isPending()) {
+    return containers[containerId]->launched.future()
+      .then(defer(
+          PID<ExternalContainerizerProcess>(this),
+          &ExternalContainerizerProcess::wait,
+          containerId));
+  }
+
   Try<Subprocess> invoked = invoke("wait", containerId, containerId);
 
   if (invoked.isError()) {
-    LOG(ERROR) << "not running";
     terminate(containerId);
     return Failure("Wait on container '" + containerId.value()
       + "' failed (error: " + invoked.error() + ")");
@@ -445,11 +458,7 @@ void ExternalContainerizerProcess::_wait(
 
   // Ensure someone notices this termination by deferring final clean
   // up until the container has been waited on.
-  container->waited.future()
-    .onAny(defer(
-        PID<ExternalContainerizerProcess>(this),
-        &ExternalContainerizerProcess::cleanup,
-        containerId));
+  cleanup(containerId);
 }
 
 
