@@ -711,7 +711,7 @@ void __read(
 void _read(
     int pipe,
     const Future<size_t>& future,
-    const boost::shared_ptr<size_t>& data,
+    const boost::shared_ptr<uint32_t>& data,
     Owned<Promise<string> > promise)
 {
   if (future.isFailed()) {
@@ -727,7 +727,7 @@ void _read(
     return;
   }
 
-  size_t size(*data.get());
+  uint32_t size(*data.get());
   VLOG(2) << "Receiving protobuf sized to " << size << " bytes";
 
   boost::shared_array<char> buffer(new char[size]);
@@ -747,9 +747,9 @@ Future<string> ExternalContainerizerProcess::read(int pipe)
 
   Owned<Promise<string> > promise(new Promise<string>());
 
-  boost::shared_ptr<size_t> buffer(new size_t);
+  boost::shared_ptr<uint32_t> buffer(new uint32_t);
 
-  io::read(pipe, buffer.get(), sizeof(size_t))
+  io::read(pipe, buffer.get(), sizeof(uint32_t))
     .onAny(lambda::bind(&_read, pipe, lambda::_1, buffer, promise));
 
   return promise->future();
@@ -840,10 +840,6 @@ Try<process::Subprocess> ExternalContainerizerProcess::invoke(
 
   CHECK(sandboxes.contains(containerId));
 
-  // Use the provided message or the containerId if no message was
-  // provided for delivery towards the external containerizer.
-  stringstream output;
-  message.SerializeToOstream(&output);
   VLOG(1) << "Invoking external containerizer for method '" << command << "'";
 
   // Construct the command to execute.
@@ -909,25 +905,15 @@ Try<process::Subprocess> ExternalContainerizerProcess::invoke(
 
   // Transmit protobuf data via stdout towards the external
   // containerizer. Each message is prefixed by its total size.
-  if (!output.str().empty()) {
-    ssize_t len = output.str().length();
+  nonblock = os::nonblock(external.get().in());
+  if (nonblock.isError()) {
+    return Error("Failed to write to stdin: " + nonblock.error());
+  }
 
-    VLOG(2) << "Writing to child's standard input "
-            << "(" << output.str().length() + sizeof(len) << " bytes)";
-
-    nonblock = os::nonblock(external.get().in());
-    if (nonblock.isError()) {
-      return Error("Failed to write to stdin: " + nonblock.error());
-    }
-
-    if (write(external.get().in(), &len, sizeof(len)) < sizeof(len)) {
-      return Error("Failed to write protobuf size to pipe");
-    }
-
-    string s = output.str();
-    if (write(external.get().in(), s.c_str(), len) < len) {
-      return Error("Failed to write protobuf payload to pipe");
-    }
+  Try<Nothing> write = protobuf::write(external.get().in(), message);
+  if (write.isError()) {
+    return Error("Failed to write protobuf to pipe (error: "
+                + write.error() + ")");
   }
 
   VLOG(2) << "Returning pid: " << external.get().pid();

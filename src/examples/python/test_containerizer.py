@@ -45,8 +45,8 @@ def use(container, methods):
 
 # Read a data chunk prefixed by its total size from stdin.
 def receive():
-    # Read size (size_t = unsigned long long => 8 bytes).
-    size = struct.unpack('Q', sys.stdin.read(8))
+    # Read size (uint32 => 4 bytes).
+    size = struct.unpack('I', sys.stdin.read(4))
     if size[0] <= 0:
         print >> sys.stderr, "Expected protobuf size over stdin. " \
                              "Received 0 bytes."
@@ -65,8 +65,8 @@ def receive():
 # Write a protobuf message prefixed by its total size (aka recordio)
 # to stdout.
 def send(data):
-    # Write size (unsigned long long = size_t).
-    os.write(1, struct.pack('Q', len(data)))
+    # Write size (uint32 => 4 bytes).
+    os.write(1, struct.pack('I', len(data)))
 
     # Write payload.
     os.write(1, data)
@@ -77,8 +77,6 @@ def send(data):
 # an ExternalStatus protobuf via stdout when successful.
 def launch():
     try:
-        print >> sys.stderr, "!launching..!"
-
         data = receive()
         if len(data) == 0:
             return 1
@@ -108,8 +106,6 @@ def launch():
                 if pid == 0:
                     # We are in the child.
                     proc = subprocess.Popen(command, env=os.environ.copy())
-
-                    print >> sys.stderr, "!executor launched!"
 
                     returncode = proc.wait()
                     lk.write(str(returncode) + "\n")
@@ -253,8 +249,6 @@ def wait():
 
         lock_dir = "/tmp/mesos-test-containerizer"
         lock = os.path.join(lock_dir, containerId.value)
-
-        print >> sys.stderr, "!blocking wait!"
 
         # Obtain shared lock and read exit code from file.
         with open(lock, "r") as lk:
