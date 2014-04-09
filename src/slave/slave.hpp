@@ -223,13 +223,13 @@ public:
   void executorTerminated(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
-      const process::Future<containerizer::Termination>& termination);
+      const process::Future<Termination>& termination);
 
   void _executorTerminated(
       const process::Future<ExecutorInfo>& future,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
-      const process::Future<containerizer::Termination>& termination,
+      const process::Future<Termination>& termination,
       int status);
 
 

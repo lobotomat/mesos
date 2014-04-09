@@ -2374,7 +2374,7 @@ void _unmonitor(
 void Slave::executorTerminated(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const Future<containerizer::Termination>& termination)
+    const Future<Termination>& termination)
 {
   int status;
   // A termination failure indicates the containerizer could not destroy a
@@ -2443,7 +2443,7 @@ void Slave::_executorTerminated(
     const Future<ExecutorInfo>& future,
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
-    const Future<containerizer::Termination>& termination,
+    const Future<Termination>& termination,
     int status)
 {
   Framework* framework = getFramework(frameworkId);

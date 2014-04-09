@@ -94,7 +94,7 @@ public:
   // containerizer should also destroy the containerized context. The future
   // may be failed if an error occurs during termination of the executor or
   // destruction of the container.
-  virtual process::Future<mesos::containerizer::Termination> wait(const ContainerID& containerId) = 0;
+  virtual process::Future<Termination> wait(const ContainerID& containerId) = 0;
 
   // Destroy a running container, killing all processes and releasing all
   // resources.

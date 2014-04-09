@@ -482,3 +482,16 @@ message Credential {
   optional bytes secret = 2;
 }
 
+
+/**
+ * Information about a container termination.
+ */
+message Termination {
+  // A container may be killed if it exceeds its resources; this will be
+  // indicated by killed=true and described by the message string.
+  required bool killed = 1;
+  required string message = 2;
+
+  // Exit status of the process.
+  optional int32 status = 3;
+}
