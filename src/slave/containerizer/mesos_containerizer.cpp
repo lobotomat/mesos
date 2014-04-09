@@ -157,8 +157,7 @@ Future<ResourceStatistics> MesosContainerizer::usage(
 }
 
 
-Future<containerizer::Termination> MesosContainerizer::wait(
-    const ContainerID& containerId)
+Future<Termination> MesosContainerizer::wait(const ContainerID& containerId)
 {
   return dispatch(process, &MesosContainerizerProcess::wait, containerId);
 }
@@ -249,8 +248,7 @@ Future<Nothing> MesosContainerizerProcess::_recover(
     CHECK_SOME(run.id);
     const ContainerID& containerId = run.id.get();
 
-    Owned<Promise<containerizer::Termination> > promise(
-        new Promise<containerizer::Termination>());
+    Owned<Promise<Termination> > promise(new Promise<Termination>());
     promises.put(containerId, promise);
 
     CHECK_SOME(run.forkedPid);
@@ -452,8 +450,7 @@ Future<ExecutorInfo> MesosContainerizerProcess::launch(
     return Failure("Container already started");
   }
 
-  Owned<Promise<containerizer::Termination> > promise(
-      new Promise<containerizer::Termination>());
+  Owned<Promise<Termination> > promise(new Promise<Termination>());
   promises.put(containerId, promise);
 
   // Store the resources for usage().
@@ -760,7 +757,7 @@ Future<ExecutorInfo> MesosContainerizerProcess::exec(
 }
 
 
-Future<containerizer::Termination> MesosContainerizerProcess::wait(
+Future<Termination> MesosContainerizerProcess::wait(
     const ContainerID& containerId)
 {
   if (!promises.contains(containerId)) {
@@ -933,7 +930,7 @@ void MesosContainerizerProcess::__destroy(
     isolator->cleanup(containerId);
   }
 
-  containerizer::Termination termination;
+  Termination termination;
   termination.set_killed(killed);
   termination.set_message(message);
   if (status.isReady() && status.get().isSome()) {

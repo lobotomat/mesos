@@ -84,8 +84,7 @@ public:
   virtual process::Future<ResourceStatistics> usage(
       const ContainerID& containerId);
 
-  virtual process::Future<containerizer::Termination> wait(
-      const ContainerID& containerId);
+  virtual process::Future<Termination> wait(const ContainerID& containerId);
 
   virtual void destroy(const ContainerID& containerId);
 
@@ -124,8 +123,7 @@ public:
   process::Future<ResourceStatistics> usage(const ContainerID& containerId);
 
   // Get a future on the containerized executor's Termination.
-  process::Future<containerizer::Termination> wait(
-      const ContainerID& containerId);
+  process::Future<Termination> wait(const ContainerID& containerId);
 
   // Terminate the containerized executor.
   void destroy(const ContainerID& containerId);
@@ -150,7 +148,7 @@ private:
     // External containerizer pid as per wait-invocation.
     pid_t pid;
 
-    process::Promise<containerizer::Termination> termination;
+    process::Promise<Termination> termination;
     process::Promise<bool> launched;
 
     Resources resources;

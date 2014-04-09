@@ -256,7 +256,7 @@ def wait():
         status = int(lk.read())
 
         # Deliver the termination protobuf back to the slave.
-        termination = containerizer_pb2.Termination()
+        termination = mesos_pb2.Termination()
         termination.killed = false
         termination.status = status
         termination.message = ""

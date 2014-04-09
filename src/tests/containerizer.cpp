@@ -132,15 +132,14 @@ Future<ExecutorInfo> TestContainerizer::launch(
   }
   os::unsetenv("MESOS_LOCAL");
 
-  Owned<Promise<containerizer::Termination> > promise(
-      new Promise<containerizer::Termination>());
+  Owned<Promise<Termination> > promise(new Promise<Termination>());
   promises[containerId] = promise;
 
   return executorInfo;
 }
 
 
-Future<containerizer::Termination> TestContainerizer::wait(
+Future<Termination> TestContainerizer::wait(
     const ContainerID& containerId)
 {
   CHECK(promises.contains(containerId))
@@ -175,7 +174,7 @@ void TestContainerizer::destroy(const ContainerID& containerId)
   driver->join();
   drivers.erase(containerId);
 
-  containerizer::Termination termination;
+  Termination termination;
   termination.set_killed(false);
   termination.set_message("Killed executor");
   termination.set_status(0);

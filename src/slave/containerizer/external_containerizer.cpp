@@ -136,8 +136,7 @@ Future<ResourceStatistics> ExternalContainerizer::usage(
 }
 
 
-Future<containerizer::Termination> ExternalContainerizer::wait(
-    const ContainerID& containerId)
+Future<Termination> ExternalContainerizer::wait(const ContainerID& containerId)
 {
   return dispatch(process, &ExternalContainerizerProcess::wait, containerId);
 }
@@ -287,7 +286,7 @@ Future<ExecutorInfo> ExternalContainerizerProcess::_launch(
 }
 
 
-Future<containerizer::Termination> ExternalContainerizerProcess::wait(
+Future<Termination> ExternalContainerizerProcess::wait(
     const ContainerID& containerId)
 {
   VLOG(1) << "Wait triggered on container '" << containerId << "'";
@@ -340,14 +339,14 @@ void ExternalContainerizerProcess::_wait(
 
   Owned<Container> container = containers[containerId];
 
-  Future<containerizer::Termination> termination;
+  Future<Termination> termination;
 
   Try<string> result = isDone(future);
   if (result.isError()) {
     termination = Failure("Failed to get result (error: "
                          + result.error() + ")");
   } else {
-    containerizer::Termination term;
+    Termination term;
     if (!term.ParseFromString(result.get())) {
       termination = Failure("Could not parse usage result protobuf (error: "
                            + term.InitializationErrorString() + ")");
