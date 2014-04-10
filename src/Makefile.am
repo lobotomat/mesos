@@ -803,7 +803,7 @@ CLEANFILES += $(PROTOBUF_EGG)
 MESOS_EGG = python/dist/mesos-$(PACKAGE_VERSION)$(PYTHON_EGG_POSTFIX).egg
 
 $(MESOS_EGG): python/setup.py $(srcdir)/python/src/mesos.py		\
-              $(PYTHON_PROTOS) $(CONTAINERIZER_PYTHON_PROTOS) 		\
+              $(PYTHON_PROTOS) $(CONTAINERIZER_PYTHON_PROTOS)		\
               libmesos_no_3rdparty.la					\
               $(PROTOBUF_EGG)
 	@echo "Building Mesos Python egg ..."
