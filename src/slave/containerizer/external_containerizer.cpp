@@ -953,6 +953,9 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
     const Option<map<string, string> >& commandEnvironment)
 {
   Try<Subprocess> external = invoke(command, sandbox, commandEnvironment);
+  if (external.isError()) {
+    return external;
+  }
 
   // Transmit protobuf data via stdout towards the external
   // containerizer. Each message is prefixed by its total size.
