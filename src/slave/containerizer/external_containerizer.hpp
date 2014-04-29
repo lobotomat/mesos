@@ -256,7 +256,12 @@ private:
   Try<process::Subprocess> invoke(
       const std::string& command,
       const Option<Sandbox>& sandbox = None(),
-      const Option<google::protobuf::Message>& message = None(),
+      const Option<std::map<std::string, std::string> >& environment = None());
+
+  Try<process::Subprocess> invoke(
+      const std::string& command,
+      const google::protobuf::Message& message,
+      const Option<Sandbox>& sandbox = None(),
       const Option<std::map<std::string, std::string> >& environment = None());
 };
 

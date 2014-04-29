@@ -308,8 +308,8 @@ Future<Nothing> ExternalContainerizerProcess::launch(
 
   Try<Subprocess> invoked = invoke(
       "launch",
-      sandbox,
       launch,
+      sandbox,
       environment);
 
   if (invoked.isError()) {
@@ -405,8 +405,8 @@ Future<containerizer::Termination> ExternalContainerizerProcess::_wait(
 
   Try<Subprocess> invoked = invoke(
       "wait",
-      actives[containerId]->sandbox,
-      wait);
+      wait,
+      actives[containerId]->sandbox);
 
   if (invoked.isError()) {
     // 'wait' has failed, we need to tear down everything now.
@@ -508,8 +508,8 @@ Future<Nothing> ExternalContainerizerProcess::_update(
 
   Try<Subprocess> invoked = invoke(
       "update",
-      actives[containerId]->sandbox,
-      update);
+      update,
+      actives[containerId]->sandbox);
 
   if (invoked.isError()) {
     return Failure("Update of container '" + containerId.value() +
@@ -576,8 +576,8 @@ Future<ResourceStatistics> ExternalContainerizerProcess::_usage(
 
   Try<Subprocess> invoked = invoke(
       "usage",
-      actives[containerId]->sandbox,
-      usage);
+      usage,
+      actives[containerId]->sandbox);
 
   if (invoked.isError()) {
     // 'usage' has failed but we keep the container alive for now.
@@ -664,8 +664,8 @@ void ExternalContainerizerProcess::_destroy(const ContainerID& containerId)
 
   Try<Subprocess> invoked = invoke(
       "destroy",
-      actives[containerId]->sandbox,
-      destroy);
+      destroy,
+      actives[containerId]->sandbox);
 
   if (invoked.isError()) {
     LOG(ERROR) << "Destroy of container '" << containerId
@@ -847,10 +847,9 @@ static int setup(const string& directory)
 }
 
 
-Try<process::Subprocess> ExternalContainerizerProcess::invoke(
+Try<Subprocess> ExternalContainerizerProcess::invoke(
     const string& command,
     const Option<Sandbox>& sandbox,
-    const Option<google::protobuf::Message>& message,
     const Option<map<string, string> >& commandEnvironment)
 {
   CHECK_SOME(flags.containerizer_path) << "containerizer_path not set";
@@ -940,21 +939,30 @@ Try<process::Subprocess> ExternalContainerizerProcess::invoke(
       .onAny(bind(&os::close, err.get()));
   }
 
-  // Transmit protobuf data via stdout towards the external
-  // containerizer. Each message is prefixed by its total size.
-  if (message.isSome()) {
-    Try<Nothing> write = ::protobuf::write(external.get().in(), message.get());
-    if (write.isError()) {
-      return Error("Failed to write protobuf to pipe: " + write.error());
-    }
-  }
-
   VLOG(2) << "Subprocess pid: " << external.get().pid() << ", "
           << "output pipe: " << external.get().out();
 
   return external;
 }
 
+
+Try<Subprocess> ExternalContainerizerProcess::invoke(
+    const string& command,
+    const google::protobuf::Message& message,
+    const Option<Sandbox>& sandbox,
+    const Option<map<string, string> >& commandEnvironment)
+{
+  Try<Subprocess> external = invoke(command, sandbox, commandEnvironment);
+
+  // Transmit protobuf data via stdout towards the external
+  // containerizer. Each message is prefixed by its total size.
+  Try<Nothing> write = ::protobuf::write(external.get().in(), message);
+  if (write.isError()) {
+    return Error("Failed to write protobuf to pipe: " + write.error());
+  }
+
+  return external;
+}
 
 } // namespace slave {
 } // namespace internal {
