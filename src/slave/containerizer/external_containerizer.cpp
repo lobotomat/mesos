@@ -105,7 +105,7 @@ static Option<Error> validate(
 // message.
 template<typename T>
 static Try<T> result(
-    const process::Future<tuples::tuple<
+    const process::Future<tuple<
         process::Future<Result<T> >,
         process::Future<Option<int> > > >& future)
 {
@@ -441,7 +441,7 @@ Future<containerizer::Termination> ExternalContainerizerProcess::_wait(
 
 void ExternalContainerizerProcess::__wait(
     const ContainerID& containerId,
-    const Future<tuples::tuple<
+    const Future<tuple<
         Future<Result<containerizer::Termination> >,
         Future<Option<int> > > >& future)
 {
@@ -604,7 +604,7 @@ Future<ResourceStatistics> ExternalContainerizerProcess::_usage(
 
 Future<ResourceStatistics> ExternalContainerizerProcess::__usage(
     const ContainerID& containerId,
-    const Future<tuples::tuple<
+    const Future<tuple<
         Future<Result<ResourceStatistics> >,
         Future<Option<int> > > >& future)
 {
@@ -733,7 +733,7 @@ Future<hashset<ContainerID> > ExternalContainerizerProcess::containers()
 
 
 Future<hashset<ContainerID> > ExternalContainerizerProcess::_containers(
-    const Future<tuples::tuple<
+    const Future<tuple<
         Future<Result<containerizer::Containers> >,
         Future<Option<int> > > >& future)
 {
@@ -751,8 +751,6 @@ Future<hashset<ContainerID> > ExternalContainerizerProcess::_containers(
     result.insert(containerId);
   }
 
-  // TODO(tillt): Make sure it is actually is a realistic scenario
-  // that the EC knows about containers that the ECP does not know.
   foreach(const ContainerID& containerId, actives.keys()) {
     if (!result.contains(containerId)) {
       LOG(WARNING) << "External containerizer is not aware of container '"
