@@ -538,6 +538,8 @@
 
 /* Begin PBXFileReference section */
 		BB01F4C318C183C700E64633 /* liblog.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = liblog.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		BB151EF61913D34100876C12 /* containerizer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = containerizer.hpp; path = ../include/mesos/containerizer/containerizer.hpp; sourceTree = SOURCE_ROOT; };
+		BB151EF71913D34100876C12 /* containerizer.proto */ = {isa = PBXFileReference; lastKnownFileType = text; name = containerizer.proto; path = ../include/mesos/containerizer/containerizer.proto; sourceTree = SOURCE_ROOT; };
 		BBB8718818C18676001F018E /* libstate.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libstate.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		BBB871A418C18842001F018E /* mesos-master */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "mesos-master"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BBB871B818C189CA001F018E /* mesos-slave */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "mesos-slave"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1053,6 +1055,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		BB151EE91913D2BA00876C12 /* containerizer */ = {
+			isa = PBXGroup;
+			children = (
+				BB151EF61913D34100876C12 /* containerizer.hpp */,
+				BB151EF71913D34100876C12 /* containerizer.proto */,
+			);
+			name = containerizer;
+			sourceTree = "<group>";
+		};
 		BBB8723918C1E74D001F018E /* cli */ = {
 			isa = PBXGroup;
 			children = (
@@ -1943,6 +1954,7 @@
 		BBF88C6518C14AE800E83221 /* mesos */ = {
 			isa = PBXGroup;
 			children = (
+				BB151EE91913D2BA00876C12 /* containerizer */,
 				BBF88C6618C14AE800E83221 /* executor.hpp */,
 				BBF88C6818C14AE800E83221 /* mesos.proto */,
 				BBF88C6918C14AE800E83221 /* resources.hpp */,
@@ -3051,6 +3063,7 @@
 					"BUILD_USER=\"\\\"Xcode\\\"\"",
 					"BUILD_TIME=\"\\\"1393642112\\\"\"",
 					"BUILD_FLAGS=\"\\\"n/a\\\"\"",
+					"BUILD_JAVA_JVM_LIBRARY=\\\"foo\\\"",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -3122,6 +3135,10 @@
 					"LIBDIR=\\\"/usr/local/lib\\\"",
 					"VERSION=\\\"0.19.0\\\"",
 					"DEBUG=1",
+					"HAVE_LEVELDB_DB_H=1",
+					"HAVE_LIBSASL2=1",
+					"MESOS_HAS_PYTHON=1",
+					"HAVE_LIBCURL=1",
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
@@ -3133,7 +3150,6 @@
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
-					/usr/local/include,
 					../3rdparty/libprocess/include,
 					../3rdparty/libprocess/3rdparty/stout/include,
 					../include,
@@ -3142,6 +3158,8 @@
 					../build/include,
 					../build/include/mesos,
 					../build/src,
+					"../build/3rdparty/libprocess/3rdparty/picojson-4f93734",
+					/usr/local/include,
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				ONLY_ACTIVE_ARCH = YES;
@@ -3196,7 +3214,6 @@
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
-					/usr/local/include,
 					../3rdparty/libprocess/include,
 					../3rdparty/libprocess/3rdparty/stout/include,
 					../include,
@@ -3205,6 +3222,8 @@
 					../build/include,
 					../build/include/mesos,
 					../build/src,
+					"../build/3rdparty/libprocess/3rdparty/picojson-4f93734",
+					/usr/local/include,
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				SDKROOT = macosx;
