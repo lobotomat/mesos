@@ -328,6 +328,11 @@ def containers():
     try:
         containers = containerizer_pb2.Containers()
 
+        # This currently does not fill in any active containers and
+        # therefor is to be regarded as being not complete.
+        # A complete implementation would fill the containers message
+        # with all active ContainerIDs.
+
         send(containers.SerializeToString())
 
     except google.protobuf.message.EncodeError:
