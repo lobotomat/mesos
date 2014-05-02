@@ -105,9 +105,7 @@ static Option<Error> validate(
 // message.
 template<typename T>
 static Try<T> result(
-    const process::Future<tuple<
-        process::Future<Result<T> >,
-        process::Future<Option<int> > > >& future)
+    const Future<tuple<Future<Result<T> >, Future<Option<int> > > >& future)
 {
   if (!future.isReady()) {
     return Error("Could not receive any result");
@@ -749,13 +747,6 @@ Future<hashset<ContainerID> > ExternalContainerizerProcess::_containers(
   hashset<ContainerID> result;
   foreach(const ContainerID& containerId, containers.get().containers()) {
     result.insert(containerId);
-  }
-
-  foreach(const ContainerID& containerId, actives.keys()) {
-    if (!result.contains(containerId)) {
-      LOG(WARNING) << "External containerizer is not aware of container '"
-                   << containerId << "'";
-    }
   }
 
   return result;
