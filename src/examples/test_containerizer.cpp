@@ -38,10 +38,14 @@
 #include <string>
 
 #include <mesos/mesos.hpp>
+#include <mesos/mesos.hpp>
 #include <mesos/containerizer/containerizer.hpp>
 
 #include <process/owned.hpp>
 #include <process/pid.hpp>
+#include <process/dispatch.hpp>
+#include <process/process.hpp>
+#include <process/protobuf.hpp>
 
 #include <stout/hashset.hpp>
 #include <stout/flags.hpp>
@@ -49,24 +53,28 @@
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
 
+#include "messages/messages.hpp"
+
 #include "slave/flags.hpp"
 
 #include "slave/containerizer/mesos_containerizer.hpp"
 
 #include "slave/containerizer/isolators/posix.hpp"
 
+#include "examples/test_containerizer.pb.h"
+
 using namespace mesos;
 using namespace mesos::containerizer;
+using namespace mesos::containerizer::examples;
 
 using process::Owned;
 using process::UPID;
 using process::PID;
+using process::Future;
 
 using std::cout;
 using std::cerr;
 using std::endl;
-using std::ofstream;
-using std::ifstream;
 using std::string;
 using std::vector;
 
@@ -86,18 +94,42 @@ Try<Nothing> send(const google::protobuf::Message& message)
 }
 
 
+template<typename T>
+static Try<T> validate(const Future<T>& future)
+{
+  if (!future.isReady()) {
+    return Error("Outer result "
+        + (future.isFailed() ? "failed: " + future.failure()
+                             : "got discarded"));
+  }
+
+  T result = future.get();
+  if (result.future().status() != examples::FUTURE_READY) {
+    return Error("Inner result "
+        + (result.future().status() ==  examples::FUTURE_FAILED
+            ? "failed: " + future.failure()
+            : "got discarded"));
+  }
+
+  return result;
+}
+
+
 namespace mesos {
 namespace internal {
 namespace slave {
 
+
 class TestContainerizerProcess : public MesosContainerizerProcess
 {
 public:
-    TestContainerizerProcess(
+  TestContainerizerProcess(
       const Flags& flags,
       const Owned<Launcher>& launcher,
       const vector<Owned<Isolator> >& isolators)
-    : MesosContainerizerProcess(flags, true, launcher, isolators) {}
+    : MesosContainerizerProcess(flags, true, launcher, isolators)
+  {
+  }
 
   virtual ~TestContainerizerProcess() {}
 
@@ -105,15 +137,271 @@ private:
 };
 
 
+class ReceiveProcess : public ProtobufProcess<ReceiveProcess>
+{
+public:
+  ReceiveProcess(TestContainerizerProcess* target) : target(target) {}
+
+  void initialize()
+  {
+    install<ShutdownMessage>(
+        &ReceiveProcess::shutdown);
+
+    void (ReceiveProcess::*launch)(
+        const UPID&,
+        const ContainerID&,
+        const TaskInfo&,
+        const ExecutorInfo&,
+        const string&,
+        const Option<string>&,
+        const SlaveID&,
+        const PID<Slave>&,
+        bool checkpoint) = &ReceiveProcess::launch;
+
+    install<Launch>(
+        launch,
+        &Launch::container_id,
+        &Launch::task_info,
+        &Launch::executor_info,
+        &Launch::directory,
+        &Launch::user,
+        &Launch::slave_id,
+        &Launch::slave_pid,
+        &Launch::checkpoint);
+
+    install<Update>(
+        &ReceiveProcess::update,
+        &Usage::container_id
+        &Usage::resources);
+
+    install<Destroy>(
+        &ReceiveProcess::destroy,
+        &containerizer::Destroy::container_id);
+
+    install<Recover>(
+        &ReceiveProcess::recover);
+
+    install<ContainersRequest>(
+        &ReceiveProcess::containers);
+
+    install<Wait>(
+        &ReceiveProcess::wait,
+        &Wait::container_id);
+
+    install<Usage>(
+        &ReceiveProcess::usage,
+        &Usage::container_id);
+  }
+
+  // Future<hashset<ContainerID> > overload
+  void reply(const UPID& from, const Future<hashset<ContainerID> >& future)
+  {
+    FutureMessage message;
+
+    message.set_status(future.isReady()
+        ? FUTURE_READY
+        : future.isFailed() ? FUTURE_FAILED
+                            : FUTURE_DISCARDED);
+    if (future.isFailed()) {
+      message.set_message(future.failure());
+    }
+
+    ContainersResult r;
+    r.mutable_future()->CopyFrom(message);
+
+    if (future.isReady()) {
+      Containers *result = r.mutable_result();
+      foreach(const ContainerID& containerId, future.get()) {
+        result->add_containers()->CopyFrom(containerId);
+      }
+    }
+
+    send(from, r);
+  }
+
+  // Future<Nothing> overload
+  template<typename R>
+  void reply(const UPID& from, const Future<Nothing>& future)
+  {
+    FutureMessage message;
+
+    message.set_status(future.isReady()
+        ? FUTURE_READY
+        : future.isFailed() ? FUTURE_FAILED
+                            : FUTURE_DISCARDED);
+    if (future.isFailed()) {
+      message.set_message(future.failure());
+    }
+
+    R r;
+    r.mutable_future()->CopyFrom(message);
+
+    send(from, r);
+  }
+
+  template<typename T, typename R>
+  void reply(const UPID& from, const Future<T>& future)
+  {
+    FutureMessage message;
+
+    message.set_status(future.isReady()
+        ? FUTURE_READY
+        : future.isFailed() ? FUTURE_FAILED
+                            : FUTURE_DISCARDED);
+    if (future.isFailed()) {
+      message.set_message(future.failure());
+    }
+
+    R r;
+    r.mutable_future()->CopyFrom(message);
+    if (future.isReady()) {
+      r.mutable_result()->CopyFrom(future.get());
+    }
+
+    send(from, r);
+  }
+
+  void launch(
+      const UPID& from,
+      const ContainerID& containerId,
+      const TaskInfo& taskInfo,
+      const ExecutorInfo& executorInfo,
+      const string& directory,
+      const string& user,
+      const SlaveID& slaveId,
+      const string& slavePid,
+      bool checkpoint)
+  {
+    dispatch(
+        target,
+        &TestContainerizerProcess::launch,
+        containerId,
+        taskInfo,
+        executorInfo,
+        directory,
+        user,
+        slaveId,
+        slavePid,
+        checkpoint)
+      .onAny(defer(
+        self(),
+        &ReceiveProcess::reply<LaunchResult>,
+        from,
+        lambda::_1));
+  }
+
+  void containers(const UPID& from)
+  {
+    void (ReceiveProcess::*reply)(
+        const UPID&,
+        const Future<hashset<ContainerID> >&) = &ReceiveProcess::reply;
+
+    dispatch(
+        target,
+        &TestContainerizerProcess::containers)
+      .onAny(lambda::bind(
+          reply,
+          this,
+          from,
+          lambda::_1));
+  }
+
+  void wait(const UPID& from, const ContainerID& containerId)
+  {
+    dispatch(
+        target,
+        &TestContainerizerProcess::wait,
+        containerId)
+      .onAny(lambda::bind(
+          &ReceiveProcess::reply<Termination, WaitResult>,
+          this,
+          from,
+          lambda::_1));
+  }
+
+  void usage(const UPID& from, const ContainerID& containerId)
+  {
+    dispatch(
+        target,
+        &TestContainerizerProcess::usage,
+        containerId)
+      .onAny(lambda::bind(
+          &ReceiveProcess::reply<ResourceStatistics, UsageResult>,
+          this,
+          from,
+          lambda::_1));
+  }
+
+  void shutdown()
+  {
+    cerr << "Received shutdown" << endl;
+    terminate(target);
+  }
+
+private:
+  TestContainerizerProcess* target;
+};
+
+
 class TestContainerizer
 {
 public:
-  TestContainerizer() : path("/tmp/mesos-test-containerizer")
+  TestContainerizer() : path("/tmp/mesos-test-containerizer") {}
+  virtual ~TestContainerizer() {}
+
+  Option<Error> initialize()
   {
+    try {
+      std::ifstream file(path::join(path, "pid"));
+      file >> pid;
+      file.close();
+    } catch(std::exception e) {
+      return Error(string("Failed reading PID: ") + e.what());
+    }
+    return None();
   }
 
-  virtual ~TestContainerizer()
+  // T=containerizer::Usage
+  // R=examples::UsageResult
+  template <typename T, typename R>
+  Option<Error> thunk(bool piped = true)
   {
+    Option<Error> init = initialize();
+    if (init.isSome()) {
+      return Error("Failed to initialize: " + init.get().message);
+    }
+
+    T t;
+    // Receive the message via pipe, if needed.
+    if (piped) {
+      Result<T> result = receive<T>();
+      if (result.isError()) {
+        return Error("Failed to receive from pipe: " + result.error());
+      }
+      t.CopyFrom(result.get());
+    }
+
+    // Send a request and receive an answer via process protobuf
+    // exchange.
+    struct Protocol<T, R> protocol;
+    Future<R> future = protocol(pid, t);
+
+    future.await();
+
+    Try<R> r = validate(future);
+    if (r.isError()) {
+      return Error("Exchange failed: " + r.error());
+    }
+
+    if (r.get().has_result()) {
+      // Send the payload message via pipe.
+      Try<Nothing> sent = send(r.get().result());
+      if (sent.isError()) {
+        return Error("Failed to send to pipe: " + sent.error());
+      }
+    }
+
+    return None();
   }
 
   int setup()
@@ -150,25 +438,20 @@ public:
 
     spawn(process, false);
 
-    pid = PID<TestContainerizerProcess>(process);
+    ReceiveProcess* receive = new ReceiveProcess(process);
+    spawn(receive, false);
+
+    pid = PID<ReceiveProcess>(receive);
 
     // Serialize the UPID.
-    ofstream file(path::join(path, "pid"));
+    std::ofstream file(path::join(path, "pid"));
     file << pid;
     file.close();
 
     cerr << "PID: " << pid << endl;
 
-    process::Future<Nothing> future = process::dispatch(
-        pid, &MesosContainerizerProcess::recover, None());
-
-    cerr << "awaiting recovery" << endl;
-
-    future.await();
-
-    cerr << "recovery done" << endl;
-
     process::wait(process);
+    delete receive;
     delete process;
 
     return 0;
@@ -176,37 +459,25 @@ public:
 
   int teardown()
   {
-    ifstream file(path::join(path, "pid"));
-    file >> pid;
-    file.close();
+    if (initialize().isSome()) {
+      return 1;
+    }
 
-    cerr << "PID: " << pid << endl;
-
-    process::initialize();
-
-    process::Future<Nothing> future = process::dispatch(
-        pid, &MesosContainerizerProcess::recover, None());
-
-    cerr << "awaiting recovery" << endl;
-
-    future.await();
-
-    cerr << "recovery done" << endl;
-
-    process::terminate(pid);
-    process::wait(pid);
+    ShutdownMessage message;
+    process::post(pid, message);
+    sleep(1);
 
     return 0;
-  }
-
-  void init(const UPID& pid)
-  {
-    //process
   }
 
   // Recover all containerized executors states.
   int recover()
   {
+    Option<Error> result = thunk<RecoverRequest, RecoverResult>(false);
+    if (result.isSome()) {
+      cerr << "Recover failed: " << result.get().message << endl;
+      return 1;
+    }
     return 0;
   }
 
@@ -214,12 +485,12 @@ public:
   // protobuf via stdin.
   int launch()
   {
-    Result<containerizer::Launch> launch = receive<containerizer::Launch>();
-    if (launch.isError()) {
-      cerr << "Failed to receive Launch message: " << launch.error() << endl;
+    Option<Error> result = thunk<Launch, LaunchResult>();
+    if (result.isSome()) {
+      cerr << "Launch failed: " << result.get().message
+           << endl;
       return 1;
     }
-
     return 0;
   }
 
@@ -228,20 +499,12 @@ public:
   // gathered from launch's wait via stdout.
   int wait()
   {
-    Result<containerizer::Wait> wait = receive<containerizer::Wait>();
-    if (wait.isError()) {
-      cerr << "Failed to receive Wait message: " << wait.error() << endl;
+    Option<Error> result = thunk<Wait, WaitResult>();
+    if (result.isSome()) {
+      cerr << "Wait failed: " << result.get().message
+           << endl;
       return 1;
     }
-
-    containerizer::Termination termination;
-
-    Try<Nothing> sent = send(termination);
-    if (sent.isError()) {
-      cerr << "Failed to send Termination: " << sent.error() << endl;
-      return 1;
-    }
-
     return 0;
   }
 
@@ -249,12 +512,12 @@ public:
   // Expects to receive a Update protobuf via stdin.
   int update()
   {
-    Result<containerizer::Update> update = receive<containerizer::Update>();
-    if (update.isError()) {
-      cerr << "Failed to receive Update message: " << update.error() << endl;
+    Option<Error> result = thunk<Update, UpdateResult>();
+    if (result.isSome()) {
+      cerr << "Update failed: " << result.get().message
+           << endl;
       return 1;
     }
-
     return 0;
   }
 
@@ -263,51 +526,38 @@ public:
   // successful.
   int usage()
   {
-    Result<containerizer::Usage> usage = receive<containerizer::Usage>();
-    if (usage.isError()) {
-      cerr << "Failed to receive Usage message: " << usage.error() << endl;
+    Option<Error> result = thunk<Usage, UsageResult>();
+    if (result.isSome()) {
+      cerr << "Usage failed: " << result.get().message << endl;
       return 1;
     }
-
-    ResourceStatistics statistics;
-
-    Try<Nothing> sent = send(statistics);
-    if (sent.isError()) {
-      cerr << "Failed to send ResourceStatistics: " << sent.error() << endl;
-      return 1;
-    }
-
     return 0;
   }
 
-  // 
+  //
   int containers()
   {
-    containerizer::Containers containers;
-
-    Try<Nothing> sent = send(containers);
-    if (sent.isError()) {
-      cerr << "Failed to send Containers: " << sent.error() << endl;
+    Option<Error> result = thunk<ContainersRequest, ContainersResult>(false);
+    if (result.isSome()) {
+      cerr << "Containers failed: " << result.get().message << endl;
       return 1;
     }
-
     return 0;
   }
 
   // Terminate the containerized executor.
   int destroy()
   {
-    Result<containerizer::Destroy> destroy = receive<containerizer::Destroy>();
-    if (destroy.isError()) {
-      cerr << "Failed to receive Destroy message: " << destroy.error() << endl;
+    Option<Error> result = thunk<Destroy, DestroyResult>();
+    if (result.isSome()) {
+      cerr << "Destroy failed: " << result.get().message << endl;
       return 1;
     }
-
     return 0;
   }
 
 private:
-  PID<MesosContainerizerProcess> pid;
+  PID<ReceiveProcess> pid;
   string path;
 };
 

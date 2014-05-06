@@ -857,7 +857,11 @@ test_executor_CPPFLAGS = $(MESOS_CPPFLAGS)
 test_executor_LDADD = libmesos.la
 
 check_PROGRAMS += test-containerizer
-test_containerizer_SOURCES = examples/test_containerizer.cpp
+test_containerizer_SOURCES = 						\
+  examples/test_containerizer.proto					\
+  examples/test_containerizer.pb.cc					\
+  examples/test_containerizer.pb.h					\
+  examples/test_containerizer.cpp
 test_containerizer_CPPFLAGS = $(MESOS_CPPFLAGS)
 test_containerizer_LDADD = libmesos.la
 
