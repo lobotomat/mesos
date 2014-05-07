@@ -49,6 +49,7 @@
 #include "slave/state.hpp"
 
 #include "slave/containerizer/containerizer.hpp"
+#include "slave/containerizer/external_containerizer.hpp"
 
 #include "messages/messages.hpp"
 
@@ -129,7 +130,9 @@ public:
 // Note: Although these tests are typed it is Containerizer::create() that
 // decides which Containerizer to create based on the flags - see
 // SlaveRecoveryTest.
-typedef ::testing::Types<slave::MesosContainerizer> ContainerizerTypes;
+typedef ::testing::Types<
+    slave::MesosContainerizer,
+    slave::ExternalContainerizer> ContainerizerTypes;
 
 TYPED_TEST_CASE(SlaveRecoveryTest, ContainerizerTypes);
 
