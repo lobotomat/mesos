@@ -123,6 +123,7 @@ namespace slave {
 // MesosContainerizerProcess subclass allowing for overriding the
 // recover implementation.
 // TODO(tillt): Provide recover override.
+  /*
 class TestContainerizerProcess : public MesosContainerizerProcess
 {
 public:
@@ -136,7 +137,7 @@ public:
 
 private:
 };
-
+*/
 
 // Communication process allowing the MesosContainerizerProcess to be
 // controlled via proto messages.
@@ -145,7 +146,7 @@ private:
 class ReceiveProcess : public ProtobufProcess<ReceiveProcess>
 {
 public:
-  ReceiveProcess(TestContainerizerProcess* target) : target(target) {}
+  ReceiveProcess(MesosContainerizerProcess* target) : target(target) {}
 
   void initialize()
   {
@@ -276,8 +277,7 @@ public:
       const string& slavePid,
       bool checkpoint)
   {
-/*
-    Future<Nothing> (TestContainerizerProcess::*launch)(
+    Future<Nothing> (MesosContainerizerProcess::*launch)(
       const ContainerID&,
       const TaskInfo&,
       const ExecutorInfo&,
@@ -285,12 +285,19 @@ public:
       const Option<string>&,
       const SlaveID&,
       const PID<Slave>&,
-      bool) = &TestContainerizerProcess::launch;
+      bool) = &MesosContainerizerProcess::launch;
 
     Option<string> userOption;
     if (!user.empty()) {
       userOption = user;
     }
+
+    // TODO(tillt): This smells fishy - validate its function!
+    PID<Slave> slave;
+    std::stringstream stream;
+    stream << slavePid;
+    stream >> slave;
+
     dispatch(
         target,
         launch,
@@ -300,14 +307,13 @@ public:
         directory,
         userOption,
         slaveId,
-        slavePid,
+        slave,
         checkpoint)
       .onAny(defer(
         self(),
         &ReceiveProcess::reply<LaunchResult>,
         from,
         lambda::_1));
-        */
   }
 
   void containers(const UPID& from)
@@ -318,7 +324,7 @@ public:
 
     dispatch(
         target,
-        &TestContainerizerProcess::containers)
+        &MesosContainerizerProcess::containers)
       .onAny(lambda::bind(
           reply,
           this,
@@ -330,7 +336,7 @@ public:
   {
     dispatch(
         target,
-        &TestContainerizerProcess::wait,
+        &MesosContainerizerProcess::wait,
         containerId)
       .onAny(lambda::bind(
           &ReceiveProcess::reply<Termination, WaitResult>,
@@ -343,7 +349,7 @@ public:
   {
     dispatch(
         target,
-        &TestContainerizerProcess::usage,
+        &MesosContainerizerProcess::usage,
         containerId)
       .onAny(lambda::bind(
           &ReceiveProcess::reply<ResourceStatistics, UsageResult>,
@@ -356,7 +362,7 @@ public:
   {
     dispatch(
         target,
-        &TestContainerizerProcess::destroy,
+        &MesosContainerizerProcess::destroy,
         containerId);
   }
 
@@ -371,7 +377,7 @@ public:
     }
     dispatch(
         target,
-        &TestContainerizerProcess::update,
+        &MesosContainerizerProcess::update,
         containerId,
         resources)
       .onAny(lambda::bind(
@@ -388,7 +394,7 @@ public:
   }
 
 private:
-  TestContainerizerProcess* target;
+  MesosContainerizerProcess* target;
 };
 
 
@@ -534,8 +540,8 @@ public:
     // as a ProtobufProcess (ReceiveProcess) for covering the
     // communication with the former.
 
-    TestContainerizerProcess* process = new TestContainerizerProcess(
-        flags, Owned<Launcher>(launcher.get()), isolators);
+    MesosContainerizerProcess* process = new MesosContainerizerProcess(
+        flags, true, Owned<Launcher>(launcher.get()), isolators);
 
     spawn(process, false);
 
