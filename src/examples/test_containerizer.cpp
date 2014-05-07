@@ -358,7 +358,6 @@ public:
         target,
         &TestContainerizerProcess::destroy,
         containerId);
-    // Destroy is void.
   }
 
   void update(
@@ -657,14 +656,21 @@ public:
   // Terminate the containerized executor.
   int destroy()
   {
-    // TODO(tillt): Needs a redo as destroy is typed void.
-    /*
-    Option<Error> result = thunk<Destroy>(true);
-    if (result.isSome()) {
-      cerr << "Destroy failed: " << result.get().message << endl;
+    Option<Error> init = initialize();
+    if (init.isSome()) {
+      cerr << "Failed to initialize: " + init.get().message << endl;
       return 1;
     }
-    */
+
+    // Receive the message via pipe, if needed.
+    Result<Destroy> result = receive<Destroy>();
+    if (result.isError()) {
+      cerr << "Failed to receive from pipe: " + result.error() << endl;
+      return 1;
+    }
+
+    process::post(pid, result.get());
+
     return 0;
   }
 
