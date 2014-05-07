@@ -50,6 +50,7 @@
 
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/mesos_containerizer.hpp"
+#include "slave/containerizer/external_containerizer.hpp"
 #include "slave/slave.hpp"
 
 #include "tests/cluster.hpp"
@@ -199,6 +200,12 @@ protected:
 };
 #endif // __linux__
 
+template<>
+class ContainerizerTest<slave::ExternalContainerizer> : public MesosTest
+{
+protected:
+  virtual slave::Flags CreateSlaveFlags();
+};
 
 #ifdef MESOS_HAS_JAVA
 
