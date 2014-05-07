@@ -1004,7 +1004,6 @@ void MesosContainerizerProcess::limited(
 
 Future<hashset<ContainerID> > MesosContainerizerProcess::containers()
 {
-  std::cerr << "CONTAINERS INVOKED" << std::endl;
   return promises.keys();
 }
 
