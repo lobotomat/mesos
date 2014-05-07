@@ -120,6 +120,9 @@ namespace internal {
 namespace slave {
 
 
+// MesosContainerizerProcess subclass allowing for overriding the
+// recover implementation.
+// TODO(tillt): Provide recover override.
 class TestContainerizerProcess : public MesosContainerizerProcess
 {
 public:
@@ -127,9 +130,7 @@ public:
       const Flags& flags,
       const Owned<Launcher>& launcher,
       const vector<Owned<Isolator> >& isolators)
-    : MesosContainerizerProcess(flags, true, launcher, isolators)
-  {
-  }
+    : MesosContainerizerProcess(flags, true, launcher, isolators) {}
 
   virtual ~TestContainerizerProcess() {}
 
@@ -137,6 +138,10 @@ private:
 };
 
 
+// Communication process allowing the MesosContainerizerProcess to be
+// controlled via proto messages.
+// TODO(tillt): Consider renaming to "ThunkProcess" as the
+// communication truely is two-way.
 class ReceiveProcess : public ProtobufProcess<ReceiveProcess>
 {
 public:
@@ -147,16 +152,17 @@ public:
     install<ShutdownMessage>(
         &ReceiveProcess::shutdown);
 
+/*
     void (ReceiveProcess::*launch)(
         const UPID&,
         const ContainerID&,
         const TaskInfo&,
         const ExecutorInfo&,
         const string&,
-        const Option<string>&,
+        const string&,
         const SlaveID&,
-        const PID<Slave>&,
-        bool checkpoint) = &ReceiveProcess::launch;
+        const string&,
+        bool) = &ReceiveProcess::launch;
 
     install<Launch>(
         launch,
@@ -168,17 +174,18 @@ public:
         &Launch::slave_id,
         &Launch::slave_pid,
         &Launch::checkpoint);
-
+*/
+/*
     install<Update>(
         &ReceiveProcess::update,
-        &Usage::container_id
-        &Usage::resources);
-
+        &Update::container_id
+        &Update::resources);
+*/
     install<Destroy>(
         &ReceiveProcess::destroy,
-        &containerizer::Destroy::container_id);
+        &Destroy::container_id);
 
-    install<Recover>(
+    install<RecoverRequest>(
         &ReceiveProcess::recover);
 
     install<ContainersRequest>(
@@ -239,6 +246,8 @@ public:
     send(from, r);
   }
 
+  // TODO(tillt): Find a way to combine all overloads into this or
+  // refactor the common code into a seperate function.
   template<typename T, typename R>
   void reply(const UPID& from, const Future<T>& future)
   {
@@ -272,14 +281,29 @@ public:
       const string& slavePid,
       bool checkpoint)
   {
+/*
+    Future<Nothing> (TestContainerizerProcess::*launch)(
+      const ContainerID&,
+      const TaskInfo&,
+      const ExecutorInfo&,
+      const string&,
+      const Option<string>&,
+      const SlaveID&,
+      const PID<Slave>&,
+      bool) = &TestContainerizerProcess::launch;
+
+    Option<string> userOption;
+    if (!user.empty()) {
+      userOption = user;
+    }
     dispatch(
         target,
-        &TestContainerizerProcess::launch,
+        launch,
         containerId,
         taskInfo,
         executorInfo,
         directory,
-        user,
+        userOption,
         slaveId,
         slavePid,
         checkpoint)
@@ -288,6 +312,7 @@ public:
         &ReceiveProcess::reply<LaunchResult>,
         from,
         lambda::_1));
+        */
   }
 
   void containers(const UPID& from)
@@ -332,6 +357,47 @@ public:
           lambda::_1));
   }
 
+  void recover(const UPID& from)
+  {
+    // TODO(tillt): We need an interface for Recover!
+    /*
+    dispatch(
+        target,
+        &TestContainerizerProcess::recover)
+      .onAny(lambda::bind(
+          &ReceiveProcess::reply<RecoverResult>,
+          this,
+          from,
+          lambda::_1));
+    */
+  }
+
+  void destroy(const UPID& from, const ContainerID& containerId)
+  {
+    dispatch(
+        target,
+        &TestContainerizerProcess::destroy,
+        containerId);
+    // Destroy is void.
+  }
+
+  void update(
+      const UPID& from,
+      const ContainerID& containerId,
+      const Resources& resources)
+  {
+    dispatch(
+        target,
+        &TestContainerizerProcess::update,
+        containerId,
+        resources)
+      .onAny(lambda::bind(
+          &ReceiveProcess::reply<UpdateResult>,
+          this,
+          from,
+          lambda::_1));
+  }
+
   void shutdown()
   {
     cerr << "Received shutdown" << endl;
@@ -343,6 +409,12 @@ private:
 };
 
 
+// Allows spawning a daemon via "setup" and shutting it down again
+// via "teardown".
+// Also poses as the external interface of the ExternalContainerizer
+// program via its standard API as defined within
+// ExternalContainerizer.hpp.
+// TOOD(tillt): Consider refactoring this into two classes.
 class TestContainerizer
 {
 public:
@@ -351,6 +423,7 @@ public:
 
   Option<Error> initialize()
   {
+    os::mkdir(path);
     try {
       std::ifstream file(path::join(path, "pid"));
       file >> pid;
@@ -358,22 +431,26 @@ public:
     } catch(std::exception e) {
       return Error(string("Failed reading PID: ") + e.what());
     }
+    cerr << pid << endl;
     return None();
   }
 
-  // T=containerizer::Usage
-  // R=examples::UsageResult
+  // Receive message via pipe if available, transmit that message via
+  // socket to the MesosContainerizer, receive the result message and
+  // pipe it out.
   template <typename T, typename R>
-  Option<Error> thunk(bool piped = true)
+  Option<Error> thunk(bool in = true)
   {
     Option<Error> init = initialize();
     if (init.isSome()) {
       return Error("Failed to initialize: " + init.get().message);
     }
 
+    // Receive the message via pipe, if needed - otherwise, use the
+    // empty instance to pose as a call selector.
     T t;
-    // Receive the message via pipe, if needed.
-    if (piped) {
+
+    if (in) {
       Result<T> result = receive<T>();
       if (result.isError()) {
         return Error("Failed to receive from pipe: " + result.error());
@@ -393,17 +470,54 @@ public:
       return Error("Exchange failed: " + r.error());
     }
 
-    if (r.get().has_result()) {
-      // Send the payload message via pipe.
-      Try<Nothing> sent = send(r.get().result());
-      if (sent.isError()) {
-        return Error("Failed to send to pipe: " + sent.error());
-      }
+    // Send the payload message via pipe.
+    Try<Nothing> sent = send(r.get().result());
+    if (sent.isError()) {
+      return Error("Failed to send to pipe: " + sent.error());
     }
 
     return None();
   }
 
+  // Receive message via pipe if available, transmit that message via
+  // socket to the MesosContainerizer, receive the result message.
+  // TODO(tillt): Combine with the above function.
+  template <typename T, typename R>
+  Option<Error> oneWayThunk(bool in = true)
+  {
+    Option<Error> init = initialize();
+    if (init.isSome()) {
+      return Error("Failed to initialize: " + init.get().message);
+    }
+
+    T t;
+    // Receive the message via pipe, if needed.
+    if (in) {
+      Result<T> result = receive<T>();
+      if (result.isError()) {
+        return Error("Failed to receive from pipe: " + result.error());
+      }
+      t.CopyFrom(result.get());
+    }
+
+    // Send a request and receive an answer via process protobuf
+    // exchange.
+    struct Protocol<T, R> protocol;
+    Future<R> future = protocol(pid, t);
+
+    future.await();
+
+    Try<R> r = validate(future);
+    if (r.isError()) {
+      return Error("Exchange failed: " + r.error());
+    }
+
+    return None();
+  }
+
+
+  // Prepare the MesosContainerizerProcess to use posix-isolation,
+  // setup the process IO-API and serialize the UPID to the filesystem.
   int setup()
   {
     Flags flags;
@@ -433,6 +547,11 @@ public:
       return 1;
     }
 
+    // We now spawn two processes in this context; the subclassed
+    // MesosContainerizerProcess (TestContainerizerProcess) as well
+    // as a ProtobufProcess (ReceiveProcess) for covering the
+    // communication with the former.
+
     TestContainerizerProcess* process = new TestContainerizerProcess(
         flags, Owned<Launcher>(launcher.get()), isolators);
 
@@ -444,9 +563,14 @@ public:
     pid = PID<ReceiveProcess>(receive);
 
     // Serialize the UPID.
-    std::ofstream file(path::join(path, "pid"));
-    file << pid;
-    file.close();
+    try {
+      std::fstream file(path::join(path, "pid"), std::ios::out);
+      file << pid;
+      file.close();
+    } catch(std::exception e) {
+      cerr << "Failed writing PID: " << e.what() << endl;
+      return 1;
+    }
 
     cerr << "PID: " << pid << endl;
 
@@ -457,6 +581,7 @@ public:
     return 0;
   }
 
+  // Shutdown the daemon.
   int teardown()
   {
     if (initialize().isSome()) {
@@ -465,6 +590,7 @@ public:
 
     ShutdownMessage message;
     process::post(pid, message);
+    cerr << "Sending shutdown message.." << endl;
     sleep(1);
 
     return 0;
@@ -473,7 +599,7 @@ public:
   // Recover all containerized executors states.
   int recover()
   {
-    Option<Error> result = thunk<RecoverRequest, RecoverResult>(false);
+    Option<Error> result = oneWayThunk<RecoverRequest, RecoverResult>(false);
     if (result.isSome()) {
       cerr << "Recover failed: " << result.get().message << endl;
       return 1;
@@ -485,7 +611,7 @@ public:
   // protobuf via stdin.
   int launch()
   {
-    Option<Error> result = thunk<Launch, LaunchResult>();
+    Option<Error> result = oneWayThunk<Launch, LaunchResult>(true);
     if (result.isSome()) {
       cerr << "Launch failed: " << result.get().message
            << endl;
@@ -512,7 +638,7 @@ public:
   // Expects to receive a Update protobuf via stdin.
   int update()
   {
-    Option<Error> result = thunk<Update, UpdateResult>();
+    Option<Error> result = oneWayThunk<Update, UpdateResult>(true);
     if (result.isSome()) {
       cerr << "Update failed: " << result.get().message
            << endl;
@@ -534,10 +660,11 @@ public:
     return 0;
   }
 
-  //
+  // Receive active containers.
   int containers()
   {
-    Option<Error> result = thunk<ContainersRequest, ContainersResult>(false);
+    Option<Error> result = thunk<
+      ContainersRequest, ContainersResult>(false);
     if (result.isSome()) {
       cerr << "Containers failed: " << result.get().message << endl;
       return 1;
@@ -548,11 +675,14 @@ public:
   // Terminate the containerized executor.
   int destroy()
   {
-    Option<Error> result = thunk<Destroy, DestroyResult>();
+    // TODO(tillt): Needs a redo as destroy is typed void.
+    /*
+    Option<Error> result = thunk<Destroy>(true);
     if (result.isSome()) {
       cerr << "Destroy failed: " << result.get().message << endl;
       return 1;
     }
+    */
     return 0;
   }
 
@@ -564,6 +694,7 @@ private:
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {
+
 
 void usage(const char* argv0, const hashset<string>& commands)
 {
