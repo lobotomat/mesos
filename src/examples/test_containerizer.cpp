@@ -53,8 +53,6 @@
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
 
-#include "examples/test_containerizer.pb.h"
-
 #include "messages/messages.hpp"
 
 #include "slave/flags.hpp"
@@ -63,8 +61,7 @@
 
 #include "slave/containerizer/isolators/posix.hpp"
 
-#include "tests/mesos.hpp"
-
+#include "examples/test_containerizer.pb.h"
 
 using namespace mesos;
 using namespace mesos::containerizer;
@@ -267,6 +264,10 @@ public:
       const PID<Slave>&,
       bool) = &MesosContainerizerProcess::launch;
 
+    cerr << "ContainerID: " << message.container_id() << endl;
+    cerr << "TaskID: " << message.task_info().task_id() << endl;
+    cerr << "ExecutorID: " << message.executor_info().executor_id() << endl;
+
     Option<string> userOption;
     if (!message.user().empty()) {
       userOption = message.user();
@@ -384,7 +385,7 @@ private:
 // program via its standard API as defined within
 // ExternalContainerizer.hpp.
 // TOOD(tillt): Consider refactoring this into two classes.
-class TestContainerizer : public MesosTest
+class TestContainerizer
 {
 public:
   TestContainerizer() : path("/tmp/mesos-test-containerizer") {}
@@ -417,6 +418,8 @@ public:
     // exchange.
     struct Protocol<T, R> protocol;
     Future<R> future = protocol(pid, t);
+
+    sleep(1);
 
     future.await();
 
@@ -451,6 +454,8 @@ public:
     struct Protocol<T, R> protocol;
     Future<R> future = protocol(pid, t);
 
+    sleep(1);
+    
     future.await();
 
     Try<R> r = validate(future);
@@ -466,7 +471,11 @@ public:
   // setup the process IO-API and serialize the UPID to the filesystem.
   int setup()
   {
-    Flags flags = CreateSlaveFlags();
+    Flags flags;
+
+    //Try<std::string> directory = environment->mkdtemp();
+    flags.work_dir = "/tmp/mc-test";
+    flags.launcher_dir = "/Users/till/Development/mesos-till/build/src";
 
     // Create a MesosContainerizerProcess using isolators and a launcher.
     vector<Owned<Isolator> > isolators;
@@ -671,6 +680,7 @@ public:
 private:
   PID<ReceiveProcess> pid;
   string path;
+  string environment;
 };
 
 } // namespace slave {
@@ -741,5 +751,9 @@ int main(int argc, char** argv)
     exit(1);
   }
 
-  return methods[command]();
+  int ret = methods[command]();
+  cerr << "command: " << command << " is done." << endl;
+  sleep(1);
+
+  return ret;
 }
