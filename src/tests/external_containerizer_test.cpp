@@ -61,11 +61,6 @@ using testing::Return;
 using testing::SaveArg;
 using testing::Invoke;
 
-// The external containerizer tests currently rely on a Python script
-// which needs the Mesos Python egg being built.
-// TODO(tillt): Consider providing tests that do not rely on Python.
-#ifdef MESOS_HAS_PYTHON
-
 // TODO(tillt): Update and enhance the ExternalContainerizer tests,
 // possibly following some of the patterns used within the
 // IsolatorTests or even entirely reusing the Containerizer tests.
@@ -122,7 +117,7 @@ public:
 
 
 // This test has been temporarily disabled due to MESOS-1257.
-TEST_F(ExternalContainerizerTest, DISABLED_Launch)
+TEST_F(ExternalContainerizerTest, Launch)
 {
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
@@ -133,7 +128,7 @@ TEST_F(ExternalContainerizerTest, DISABLED_Launch)
 
   flags.isolation = "external";
   flags.containerizer_path =
-    testFlags.build_dir + "/src/examples/python/test-containerizer";
+    testFlags.build_dir + "/src/examples/test-containerizer";
 
   MockExternalContainerizer containerizer(flags);
 
@@ -261,5 +256,3 @@ TEST_F(ExternalContainerizerTest, DISABLED_Launch)
 
   this->Shutdown();
 }
-
-#endif // MESOS_HAS_PYTHON
