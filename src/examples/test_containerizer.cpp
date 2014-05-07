@@ -267,6 +267,8 @@ public:
     cerr << "ContainerID: " << message.container_id() << endl;
     cerr << "TaskID: " << message.task_info().task_id() << endl;
     cerr << "ExecutorID: " << message.executor_info().executor_id() << endl;
+    cerr << "FrameworkID: " << message.executor_info().framework_id() << endl;
+    cerr << "Command: " << message.task_info().command().value() << endl;
 
     Option<string> userOption;
     if (!message.user().empty()) {
@@ -455,7 +457,7 @@ public:
     Future<R> future = protocol(pid, t);
 
     sleep(1);
-    
+
     future.await();
 
     Try<R> r = validate(future);
