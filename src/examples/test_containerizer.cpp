@@ -363,19 +363,18 @@ private:
 class TestContainerizer
 {
 public:
-  TestContainerizer() : path("/tmp/mesos-test-containerizer") {}
+  TestContainerizer() : workDir("/tmp/mesos-test-containerizer-daemon") {}
   virtual ~TestContainerizer() {}
 
   Option<Error> initialize()
   {
     try {
-      std::ifstream file(path::join(path, "pid"));
+      std::ifstream file(path::join(workDir, "pid"));
       file >> pid;
       file.close();
     } catch(std::exception e) {
       return Error(string("Failed reading PID: ") + e.what());
     }
-    cerr << pid << endl;
     return None();
   }
 
@@ -444,10 +443,11 @@ public:
   {
     Flags flags;
 
-    //Try<std::string> directory = environment->mkdtemp();
-    os::mkdir(path);
-    flags.work_dir = "/tmp/mc-test";
-    flags.launcher_dir = "/Users/till/Development/mesos-till/build/src";
+    os::mkdir(workDir);
+
+    flags.work_dir = workDir;
+
+    flags.launcher_dir = path::join(BUILD_DIR, "src");
 
     // Create a MesosContainerizerProcess using isolators and a launcher.
     vector<Owned<Isolator> > isolators;
@@ -489,11 +489,9 @@ public:
 
     pid = PID<ReceiveProcess>(receive);
 
-    os::mkdir(path);
-
     // Serialize the UPID.
     try {
-      std::fstream file(path::join(path, "pid"), std::ios::out);
+      std::fstream file(path::join(workDir, "pid"), std::ios::out);
       file << pid;
       file.close();
     } catch(std::exception e) {
@@ -503,7 +501,9 @@ public:
 
     cerr << "PID: " << pid << endl;
 
+    // Now keep running until we get terminated via teardown.
     process::wait(process);
+
     delete receive;
     delete process;
 
@@ -513,14 +513,23 @@ public:
   // Shutdown the daemon.
   int teardown()
   {
-    if (initialize().isSome()) {
+    Option<Error> init = initialize();
+    if (init.isSome()) {
+      cerr << "Failed to initialize: " << init.get().message << endl;
       return 1;
     }
 
     ShutdownMessage message;
     process::post(pid, message);
     cerr << "Sending shutdown message.." << endl;
+
     sleep(1);
+
+    Try<Nothing> rmdir = os::rmdir(workDir);
+    if (rmdir.isError()) {
+      cerr << "Failed to remove '" << workDir << "': "
+           << rmdir.error() << endl;
+    }
 
     return 0;
   }
@@ -529,7 +538,7 @@ public:
   int recover()
   {
     // This implementation does not persist any states, hence it does
-    // not support internal recovery.
+    // need or support an internal recovery.
     return 0;
   }
 
@@ -649,8 +658,7 @@ public:
 
 private:
   PID<ReceiveProcess> pid;
-  string path;
-  string environment;
+  string workDir;
 };
 
 } // namespace slave {
@@ -721,9 +729,5 @@ int main(int argc, char** argv)
     exit(1);
   }
 
-  int ret = methods[command]();
-
-  cerr << "command: " << command << " is done." << endl;
-
-  return ret;
+  return methods[command]();
 }
