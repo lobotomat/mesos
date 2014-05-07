@@ -53,6 +53,8 @@
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
 
+#include "examples/test_containerizer.pb.h"
+
 #include "messages/messages.hpp"
 
 #include "slave/flags.hpp"
@@ -61,7 +63,8 @@
 
 #include "slave/containerizer/isolators/posix.hpp"
 
-#include "examples/test_containerizer.pb.h"
+#include "tests/mesos.hpp"
+
 
 using namespace mesos;
 using namespace mesos::containerizer;
@@ -381,7 +384,7 @@ private:
 // program via its standard API as defined within
 // ExternalContainerizer.hpp.
 // TOOD(tillt): Consider refactoring this into two classes.
-class TestContainerizer
+class TestContainerizer : public MesosTest
 {
 public:
   TestContainerizer() : path("/tmp/mesos-test-containerizer") {}
@@ -463,7 +466,7 @@ public:
   // setup the process IO-API and serialize the UPID to the filesystem.
   int setup()
   {
-    Flags flags;
+    Flags flags = CreateSlaveFlags();
 
     // Create a MesosContainerizerProcess using isolators and a launcher.
     vector<Owned<Isolator> > isolators;
