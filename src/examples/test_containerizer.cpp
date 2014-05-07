@@ -163,7 +163,6 @@ public:
         const SlaveID&,
         const string&,
         bool) = &ReceiveProcess::launch;
-
     install<Launch>(
         launch,
         &Launch::container_id,
@@ -175,18 +174,14 @@ public:
         &Launch::slave_pid,
         &Launch::checkpoint);
 */
-/*
     install<Update>(
         &ReceiveProcess::update,
-        &Update::container_id
+        &Update::container_id,
         &Update::resources);
-*/
+
     install<Destroy>(
         &ReceiveProcess::destroy,
         &Destroy::container_id);
-
-    install<RecoverRequest>(
-        &ReceiveProcess::recover);
 
     install<ContainersRequest>(
         &ReceiveProcess::containers);
@@ -357,21 +352,6 @@ public:
           lambda::_1));
   }
 
-  void recover(const UPID& from)
-  {
-    // TODO(tillt): We need an interface for Recover!
-    /*
-    dispatch(
-        target,
-        &TestContainerizerProcess::recover)
-      .onAny(lambda::bind(
-          &ReceiveProcess::reply<RecoverResult>,
-          this,
-          from,
-          lambda::_1));
-    */
-  }
-
   void destroy(const UPID& from, const ContainerID& containerId)
   {
     dispatch(
@@ -384,8 +364,12 @@ public:
   void update(
       const UPID& from,
       const ContainerID& containerId,
-      const Resources& resources)
+      const vector<Resource>& resourceVector)
   {
+    Resources resources;
+    foreach(const Resource& resource, resourceVector) {
+      resources += resource;
+    }
     dispatch(
         target,
         &TestContainerizerProcess::update,
@@ -600,11 +584,8 @@ public:
   // Recover all containerized executors states.
   int recover()
   {
-    Option<Error> result = oneWayThunk<RecoverRequest, RecoverResult>(false);
-    if (result.isSome()) {
-      cerr << "Recover failed: " << result.get().message << endl;
-      return 1;
-    }
+    // This implementation does not persist any states, hence it does
+    // not support internal recovery.
     return 0;
   }
 
