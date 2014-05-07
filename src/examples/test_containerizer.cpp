@@ -122,7 +122,7 @@ namespace slave {
 
 // MesosContainerizerProcess subclass allowing for overriding the
 // recover implementation.
-// TODO(tillt): Provide recover override.
+
   /*
 class TestContainerizerProcess : public MesosContainerizerProcess
 {
@@ -153,28 +153,10 @@ public:
     install<ShutdownMessage>(
         &ReceiveProcess::shutdown);
 
-/*
-    void (ReceiveProcess::*launch)(
-        const UPID&,
-        const ContainerID&,
-        const TaskInfo&,
-        const ExecutorInfo&,
-        const string&,
-        const string&,
-        const SlaveID&,
-        const string&,
-        bool) = &ReceiveProcess::launch;
-    install<Launch>(
-        launch,
-        &Launch::container_id,
-        &Launch::task_info,
-        &Launch::executor_info,
-        &Launch::directory,
-        &Launch::user,
-        &Launch::slave_id,
-        &Launch::slave_pid,
-        &Launch::checkpoint);
-*/
+    install<LaunchRequest>(
+        &ReceiveProcess::launch,
+        &LaunchRequest::message);
+
     install<Update>(
         &ReceiveProcess::update,
         &Update::container_id,
@@ -268,15 +250,10 @@ public:
 
   void launch(
       const UPID& from,
-      const ContainerID& containerId,
-      const TaskInfo& taskInfo,
-      const ExecutorInfo& executorInfo,
-      const string& directory,
-      const string& user,
-      const SlaveID& slaveId,
-      const string& slavePid,
-      bool checkpoint)
+      const Launch& message)
   {
+    cerr << "launch triggering..." << endl;
+
     Future<Nothing> (MesosContainerizerProcess::*launch)(
       const ContainerID&,
       const TaskInfo&,
@@ -288,27 +265,27 @@ public:
       bool) = &MesosContainerizerProcess::launch;
 
     Option<string> userOption;
-    if (!user.empty()) {
-      userOption = user;
+    if (!message.user().empty()) {
+      userOption = message.user();
     }
 
     // TODO(tillt): This smells fishy - validate its function!
     PID<Slave> slave;
     std::stringstream stream;
-    stream << slavePid;
+    stream << message.slave_pid();
     stream >> slave;
 
     dispatch(
         target,
         launch,
-        containerId,
-        taskInfo,
-        executorInfo,
-        directory,
+        message.container_id(),
+        message.task_info(),
+        message.executor_info(),
+        message.directory(),
         userOption,
-        slaveId,
+        message.slave_id(),
         slave,
-        checkpoint)
+        message.checkpoint())
       .onAny(defer(
         self(),
         &ReceiveProcess::reply<LaunchResult>,
@@ -423,27 +400,14 @@ public:
     return None();
   }
 
-  // Receive message via pipe if available, transmit that message via
-  // socket to the MesosContainerizer, receive the result message and
-  // pipe it out.
+  // Transmit that message via socket to the MesosContainerizer,
+  // receive the result message and pipe it out.
   template <typename T, typename R>
-  Option<Error> thunk(bool in = true)
+  Option<Error> thunk(const T& t)
   {
     Option<Error> init = initialize();
     if (init.isSome()) {
       return Error("Failed to initialize: " + init.get().message);
-    }
-
-    // Receive the message via pipe, if needed - otherwise, use the
-    // empty instance to pose as a call selector.
-    T t;
-
-    if (in) {
-      Result<T> result = receive<T>();
-      if (result.isError()) {
-        return Error("Failed to receive from pipe: " + result.error());
-      }
-      t.CopyFrom(result.get());
     }
 
     // Send a request and receive an answer via process protobuf
@@ -467,25 +431,16 @@ public:
     return None();
   }
 
+
   // Receive message via pipe if available, transmit that message via
   // socket to the MesosContainerizer, receive the result message.
   // TODO(tillt): Combine with the above function.
   template <typename T, typename R>
-  Option<Error> oneWayThunk(bool in = true)
+  Option<Error> oneWayThunk(const T& t)
   {
     Option<Error> init = initialize();
     if (init.isSome()) {
       return Error("Failed to initialize: " + init.get().message);
-    }
-
-    T t;
-    // Receive the message via pipe, if needed.
-    if (in) {
-      Result<T> result = receive<T>();
-      if (result.isError()) {
-        return Error("Failed to receive from pipe: " + result.error());
-      }
-      t.CopyFrom(result.get());
     }
 
     // Send a request and receive an answer via process protobuf
@@ -598,7 +553,20 @@ public:
   // protobuf via stdin.
   int launch()
   {
-    Option<Error> result = oneWayThunk<Launch, LaunchResult>(true);
+    cerr << "launch invoked" << endl;
+
+    Result<Launch> received = receive<Launch>();
+    if (received.isError()) {
+      cerr << "Failed to receive from pipe: " << received.error() << endl;
+      return 1;
+    }
+
+    // We need to wrap the Launch message as "install" only supports
+    // up to 6 parameters whereas the Launch message has 8 members.
+    LaunchRequest wrapped;
+    wrapped.mutable_message()->CopyFrom(received.get());
+
+    Option<Error> result = oneWayThunk<LaunchRequest, LaunchResult>(wrapped);
     if (result.isSome()) {
       cerr << "Launch failed: " << result.get().message
            << endl;
@@ -612,7 +580,13 @@ public:
   // gathered from launch's wait via stdout.
   int wait()
   {
-    Option<Error> result = thunk<Wait, WaitResult>();
+    Result<Wait> received = receive<Wait>();
+    if (received.isError()) {
+      cerr << "Failed to receive from pipe: " << received.error() << endl;
+      return 1;
+    }
+
+    Option<Error> result = thunk<Wait, WaitResult>(received.get());
     if (result.isSome()) {
       cerr << "Wait failed: " << result.get().message
            << endl;
@@ -625,7 +599,12 @@ public:
   // Expects to receive a Update protobuf via stdin.
   int update()
   {
-    Option<Error> result = oneWayThunk<Update, UpdateResult>(true);
+    Result<Update> received = receive<Update>();
+    if (received.isError()) {
+      cerr << "Failed to receive from pipe: " << received.error() << endl;
+      return 1;
+    }
+    Option<Error> result = oneWayThunk<Update, UpdateResult>(received.get());
     if (result.isSome()) {
       cerr << "Update failed: " << result.get().message
            << endl;
@@ -639,7 +618,12 @@ public:
   // successful.
   int usage()
   {
-    Option<Error> result = thunk<Usage, UsageResult>();
+    Result<Usage> received = receive<Usage>();
+    if (received.isError()) {
+      cerr << "Failed to receive from pipe: " << received.error() << endl;
+      return 1;
+    }
+    Option<Error> result = thunk<Usage, UsageResult>(received.get());
     if (result.isSome()) {
       cerr << "Usage failed: " << result.get().message << endl;
       return 1;
@@ -650,8 +634,9 @@ public:
   // Receive active containers.
   int containers()
   {
+    ContainersRequest request;
     Option<Error> result = thunk<
-      ContainersRequest, ContainersResult>(false);
+      ContainersRequest, ContainersResult>(request);
     if (result.isSome()) {
       cerr << "Containers failed: " << result.get().message << endl;
       return 1;
@@ -669,13 +654,13 @@ public:
     }
 
     // Receive the message via pipe, if needed.
-    Result<Destroy> result = receive<Destroy>();
-    if (result.isError()) {
-      cerr << "Failed to receive from pipe: " + result.error() << endl;
+    Result<Destroy> received = receive<Destroy>();
+    if (received.isError()) {
+      cerr << "Failed to receive from pipe: " + received.error() << endl;
       return 1;
     }
 
-    process::post(pid, result.get());
+    process::post(pid, received.get());
 
     return 0;
   }

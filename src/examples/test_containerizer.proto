@@ -34,6 +34,11 @@ message FutureMessage
   optional string message = 2;
 }
 
+message LaunchRequest
+{
+  required Launch message = 1;
+}
+
 message LaunchResult
 {
   required FutureMessage future = 1;
