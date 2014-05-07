@@ -402,8 +402,6 @@ public:
     struct Protocol<T, R> protocol;
     Future<R> future = protocol(pid, t);
 
-    sleep(1);
-
     future.await();
 
     Try<R> r = validate(future);
@@ -436,8 +434,6 @@ public:
     // exchange.
     struct Protocol<T, R> protocol;
     Future<R> future = protocol(pid, t);
-
-    sleep(1);
 
     future.await();
 
@@ -549,19 +545,11 @@ public:
   // protobuf via stdin.
   int launch()
   {
-    cerr << "launch invoked" << endl;
-
     Result<Launch> received = receive<Launch>();
     if (received.isError()) {
       cerr << "Failed to receive from pipe: " << received.error() << endl;
       return 1;
     }
-
-    cerr << "ContainerID: " << received.get().container_id() << endl;
-    cerr << "TaskID: " << received.get().task_info().task_id() << endl;
-    cerr << "ExecutorID: " << received.get().executor_info().executor_id() << endl;
-    cerr << "FrameworkID: " << received.get().executor_info().framework_id() << endl;
-    cerr << "Command: " << received.get().task_info().command().value() << endl;
 
     // We need to wrap the Launch message as "install" only supports
     // up to 6 parameters whereas the Launch message has 8 members.
@@ -742,8 +730,8 @@ int main(int argc, char** argv)
   }
 
   int ret = methods[command]();
+
   cerr << "command: " << command << " is done." << endl;
-  sleep(1);
 
   return ret;
 }
