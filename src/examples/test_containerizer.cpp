@@ -423,7 +423,6 @@ public:
 
   Option<Error> initialize()
   {
-    os::mkdir(path);
     try {
       std::ifstream file(path::join(path, "pid"));
       file >> pid;
@@ -561,6 +560,8 @@ public:
     spawn(receive, false);
 
     pid = PID<ReceiveProcess>(receive);
+
+    os::mkdir(path);
 
     // Serialize the UPID.
     try {
