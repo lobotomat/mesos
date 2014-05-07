@@ -120,25 +120,6 @@ namespace internal {
 namespace slave {
 
 
-// MesosContainerizerProcess subclass allowing for overriding the
-// recover implementation.
-
-  /*
-class TestContainerizerProcess : public MesosContainerizerProcess
-{
-public:
-  TestContainerizerProcess(
-      const Flags& flags,
-      const Owned<Launcher>& launcher,
-      const vector<Owned<Isolator> >& isolators)
-    : MesosContainerizerProcess(flags, true, launcher, isolators) {}
-
-  virtual ~TestContainerizerProcess() {}
-
-private:
-};
-*/
-
 // Communication process allowing the MesosContainerizerProcess to be
 // controlled via proto messages.
 // TODO(tillt): Consider renaming to "ThunkProcess" as the
@@ -476,6 +457,7 @@ public:
     Flags flags;
 
     //Try<std::string> directory = environment->mkdtemp();
+    os::mkdir(path);
     flags.work_dir = "/tmp/mc-test";
     flags.launcher_dir = "/Users/till/Development/mesos-till/build/src";
 
@@ -574,6 +556,12 @@ public:
       cerr << "Failed to receive from pipe: " << received.error() << endl;
       return 1;
     }
+
+    cerr << "ContainerID: " << received.get().container_id() << endl;
+    cerr << "TaskID: " << received.get().task_info().task_id() << endl;
+    cerr << "ExecutorID: " << received.get().executor_info().executor_id() << endl;
+    cerr << "FrameworkID: " << received.get().executor_info().framework_id() << endl;
+    cerr << "Command: " << received.get().task_info().command().value() << endl;
 
     // We need to wrap the Launch message as "install" only supports
     // up to 6 parameters whereas the Launch message has 8 members.
