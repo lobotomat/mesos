@@ -128,7 +128,7 @@ TEST_F(ExternalContainerizerTest, Launch)
 
   flags.isolation = "external";
   flags.containerizer_path =
-    testFlags.build_dir + "/src/examples/test-containerizer";
+    testFlags.build_dir + "/src/test-containerizer";
 
   MockExternalContainerizer containerizer(flags);
 
