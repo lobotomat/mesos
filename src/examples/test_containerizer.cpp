@@ -80,7 +80,7 @@ using std::vector;
 
 using lambda::function;
 
-
+// Receive a record-io protobuf message via stdin.
 template<typename T>
 Result<T> receive()
 {
@@ -88,24 +88,27 @@ Result<T> receive()
 }
 
 
+// Send a record-io protobuf message via stdout.
 Try<Nothing> send(const google::protobuf::Message& message)
 {
   return ::protobuf::write(STDOUT_FILENO, message);
 }
 
-
+// Verify the future status of a protobuf reception and check the
+// container (payload) FutureResult.status. When both are ready,
+// return the container.
 template<typename T>
 static Try<T> validate(const Future<T>& future)
 {
   if (!future.isReady()) {
-    return Error("Outer result "
+    return Error("Outer result future "
         + (future.isFailed() ? "failed: " + future.failure()
                              : "got discarded"));
   }
 
   T result = future.get();
   if (result.future().status() != examples::FUTURE_READY) {
-    return Error("Inner result "
+    return Error("Inner result future (protobuffed) "
         + (result.future().status() ==  examples::FUTURE_FAILED
             ? "failed: " + future.failure()
             : "got discarded"));
@@ -121,41 +124,40 @@ namespace slave {
 
 
 // Communication process allowing the MesosContainerizerProcess to be
-// controlled via proto messages.
-// TODO(tillt): Consider renaming to "ThunkProcess" as the
-// communication truely is two-way.
-class ReceiveProcess : public ProtobufProcess<ReceiveProcess>
+// controlled via remote proto messages.
+class ThunkProcess : public ProtobufProcess<ThunkProcess>
 {
 public:
-  ReceiveProcess(MesosContainerizerProcess* target) : target(target) {}
+  ThunkProcess(MesosContainerizerProcess* containerizer)
+  : containerizer(containerizer) {}
 
   void initialize()
   {
     install<ShutdownMessage>(
-        &ReceiveProcess::shutdown);
+        &ThunkProcess::shutdown);
 
     install<LaunchRequest>(
-        &ReceiveProcess::launch,
+        &ThunkProcess::launch,
         &LaunchRequest::message);
 
     install<Update>(
-        &ReceiveProcess::update,
+        &ThunkProcess::update,
         &Update::container_id,
         &Update::resources);
 
     install<Destroy>(
-        &ReceiveProcess::destroy,
+        &ThunkProcess::destroy,
         &Destroy::container_id);
 
     install<ContainersRequest>(
-        &ReceiveProcess::containers);
+        &ThunkProcess::containers);
 
     install<Wait>(
-        &ReceiveProcess::wait,
+        &ThunkProcess::wait,
         &Wait::container_id);
 
     install<Usage>(
-        &ReceiveProcess::usage,
+        &ThunkProcess::usage,
         &Usage::container_id);
   }
 
@@ -176,9 +178,9 @@ public:
     r.mutable_future()->CopyFrom(message);
 
     if (future.isReady()) {
-      Containers *result = r.mutable_result();
+      Containers* containers = r.mutable_result();
       foreach(const ContainerID& containerId, future.get()) {
-        result->add_containers()->CopyFrom(containerId);
+        containers->add_containers()->CopyFrom(containerId);
       }
     }
 
@@ -206,7 +208,7 @@ public:
   }
 
   // Answer the original request with a protobuffed result created
-  // from the dispatched future and its payload.
+  // from the dispatched future and its container.
   // Future<protobuf::Message> overload
   // TODO(tillt): Find a way to combine all overloads into this or
   // refactor the common code into a seperate function.
@@ -224,7 +226,7 @@ public:
       message.set_message(future.failure());
     }
 
-    // Wrap both, the Future status as well as its payload into a
+    // Wrap both, the Future status as well as its container into a
     // result protobuf.
     R r;
     r.mutable_future()->CopyFrom(message);
@@ -257,7 +259,7 @@ public:
     stream >> slave;
 
     dispatch(
-        target,
+        containerizer,
         launch,
         message.container_id(),
         message.task_info(),
@@ -269,19 +271,19 @@ public:
         false)
       .onAny(defer(
         self(),
-        &ReceiveProcess::reply<LaunchResult>,
+        &ThunkProcess::reply<LaunchResult>,
         from,
         lambda::_1));
   }
 
   void containers(const UPID& from)
   {
-    void (ReceiveProcess::*reply)(
+    void (ThunkProcess::*reply)(
         const UPID&,
-        const Future<hashset<ContainerID> >&) = &ReceiveProcess::reply;
+        const Future<hashset<ContainerID> >&) = &ThunkProcess::reply;
 
     dispatch(
-        target,
+        containerizer,
         &MesosContainerizerProcess::containers)
       .onAny(lambda::bind(
           reply,
@@ -293,11 +295,11 @@ public:
   void wait(const UPID& from, const ContainerID& containerId)
   {
     dispatch(
-        target,
+        containerizer,
         &MesosContainerizerProcess::wait,
         containerId)
       .onAny(lambda::bind(
-          &ReceiveProcess::reply<Termination, WaitResult>,
+          &ThunkProcess::reply<Termination, WaitResult>,
           this,
           from,
           lambda::_1));
@@ -306,11 +308,11 @@ public:
   void usage(const UPID& from, const ContainerID& containerId)
   {
     dispatch(
-        target,
+        containerizer,
         &MesosContainerizerProcess::usage,
         containerId)
       .onAny(lambda::bind(
-          &ReceiveProcess::reply<ResourceStatistics, UsageResult>,
+          &ThunkProcess::reply<ResourceStatistics, UsageResult>,
           this,
           from,
           lambda::_1));
@@ -319,7 +321,7 @@ public:
   void destroy(const UPID& from, const ContainerID& containerId)
   {
     dispatch(
-        target,
+        containerizer,
         &MesosContainerizerProcess::destroy,
         containerId);
   }
@@ -334,12 +336,12 @@ public:
       resources += resource;
     }
     dispatch(
-        target,
+        containerizer,
         &MesosContainerizerProcess::update,
         containerId,
         resources)
       .onAny(lambda::bind(
-          &ReceiveProcess::reply<UpdateResult>,
+          &ThunkProcess::reply<UpdateResult>,
           this,
           from,
           lambda::_1));
@@ -348,11 +350,12 @@ public:
   void shutdown()
   {
     cerr << "Received shutdown" << endl;
-    terminate(target);
+    terminate(containerizer);
+    process::wait(containerizer);
   }
 
 private:
-  MesosContainerizerProcess* target;
+  MesosContainerizerProcess* containerizer;
 };
 
 
@@ -370,6 +373,7 @@ public:
 
   Option<Error> initialize()
   {
+    // Fetch the serialized UPID of the daemon process.
     try {
       std::ifstream file(path::join(workDir, "pid"));
       file >> pid;
@@ -380,10 +384,10 @@ public:
     return None();
   }
 
-  // Transmit that message via socket to the MesosContainerizer,
-  // receive the result message and pipe it out.
+  // Transmit a message via socket to the MesosContainerizer, block
+  // until a result message is received.
   template <typename T, typename R>
-  Option<Error> thunk(const T& t)
+  Try<R> thunk(const T& t)
   {
     Option<Error> init = initialize();
     if (init.isSome()) {
@@ -400,39 +404,25 @@ public:
     Try<R> r = validate(future);
     if (r.isError()) {
       return Error("Exchange failed: " + r.error());
+    }
+
+    return r;
+  }
+
+  // Transmit a message via socket to the MesosContainerizer, block
+  // until a result message is received and pipe it out.
+  template <typename T, typename R>
+  Option<Error> thunkOut(const T& t)
+  {
+    Try<R> result = thunk<T, R>(t);
+    if (result.isError()) {
+      return result.error();
     }
 
     // Send the payload message via pipe.
-    Try<Nothing> sent = send(r.get().result());
+    Try<Nothing> sent = send(result.get().result());
     if (sent.isError()) {
       return Error("Failed to send to pipe: " + sent.error());
-    }
-
-    return None();
-  }
-
-
-  // Receive message via pipe if available, transmit that message via
-  // socket to the MesosContainerizer, receive the result message.
-  // TODO(tillt): Combine with the above function.
-  template <typename T, typename R>
-  Option<Error> oneWayThunk(const T& t)
-  {
-    Option<Error> init = initialize();
-    if (init.isSome()) {
-      return Error("Failed to initialize: " + init.get().message);
-    }
-
-    // Send a request and receive an answer via process protobuf
-    // exchange.
-    struct Protocol<T, R> protocol;
-    Future<R> future = protocol(pid, t);
-
-    future.await();
-
-    Try<R> r = validate(future);
-    if (r.isError()) {
-      return Error("Exchange failed: " + r.error());
     }
 
     return None();
@@ -477,18 +467,20 @@ public:
 
     // We now spawn two processes in this context; the subclassed
     // MesosContainerizerProcess (TestContainerizerProcess) as well
-    // as a ProtobufProcess (ReceiveProcess) for covering the
+    // as a ProtobufProcess (ThunkProcess) for covering the
     // communication with the former.
 
-    MesosContainerizerProcess* process = new MesosContainerizerProcess(
-        flags, true, Owned<Launcher>(launcher.get()), isolators);
+    MesosContainerizerProcess* containerizer =
+        new MesosContainerizerProcess(
+            flags,
+            true,
+            Owned<Launcher>(launcher.get()), isolators);
+    spawn(containerizer, false);
 
-    spawn(process, false);
+    ThunkProcess* thunk = new ThunkProcess(containerizer);
+    spawn(thunk, false);
 
-    ReceiveProcess* receive = new ReceiveProcess(process);
-    spawn(receive, false);
-
-    pid = PID<ReceiveProcess>(receive);
+    pid = PID<ThunkProcess>(thunk);
 
     // Serialize the UPID.
     try {
@@ -503,10 +495,9 @@ public:
     cerr << "PID: " << pid << endl;
 
     // Now keep running until we get terminated via teardown.
-    process::wait(process);
-
-    delete receive;
-    delete process;
+    process::wait(thunk);
+    delete thunk;
+    delete containerizer;
 
     return 0;
   }
@@ -558,9 +549,9 @@ public:
     LaunchRequest wrapped;
     wrapped.mutable_message()->CopyFrom(received.get());
 
-    Option<Error> result = oneWayThunk<LaunchRequest, LaunchResult>(wrapped);
-    if (result.isSome()) {
-      cerr << "Launch failed: " << result.get().message
+    Try<LaunchResult> result = thunk<LaunchRequest, LaunchResult>(wrapped);
+    if (result.isError()) {
+      cerr << "Launch failed: " << result.error()
            << endl;
       return 1;
     }
@@ -578,7 +569,7 @@ public:
       return 1;
     }
 
-    Option<Error> result = thunk<Wait, WaitResult>(received.get());
+    Option<Error> result = thunkOut<Wait, WaitResult>(received.get());
     if (result.isSome()) {
       cerr << "Wait failed: " << result.get().message
            << endl;
@@ -596,9 +587,10 @@ public:
       cerr << "Failed to receive from pipe: " << received.error() << endl;
       return 1;
     }
-    Option<Error> result = oneWayThunk<Update, UpdateResult>(received.get());
-    if (result.isSome()) {
-      cerr << "Update failed: " << result.get().message
+
+    Try<UpdateResult> result = thunk<Update, UpdateResult>(received.get());
+    if (result.isError()) {
+      cerr << "Update failed: " << result.error()
            << endl;
       return 1;
     }
@@ -615,7 +607,8 @@ public:
       cerr << "Failed to receive from pipe: " << received.error() << endl;
       return 1;
     }
-    Option<Error> result = thunk<Usage, UsageResult>(received.get());
+
+    Option<Error> result = thunkOut<Usage, UsageResult>(received.get());
     if (result.isSome()) {
       cerr << "Usage failed: " << result.get().message << endl;
       return 1;
@@ -627,8 +620,9 @@ public:
   int containers()
   {
     ContainersRequest request;
-    Option<Error> result = thunk<
-      ContainersRequest, ContainersResult>(request);
+
+    Option<Error> result =
+      thunkOut<ContainersRequest, ContainersResult>(request);
     if (result.isSome()) {
       cerr << "Containers failed: " << result.get().message << endl;
       return 1;
@@ -658,7 +652,7 @@ public:
   }
 
 private:
-  PID<ReceiveProcess> pid;
+  PID<ThunkProcess> pid;
   string workDir;
 };
 
