@@ -430,6 +430,9 @@ Future<Nothing> ExternalContainerizerProcess::launch(
   }
 
   // Checkpoint the executor's pid if requested.
+  // TODO(tillt): This is in here just to get the current slave's
+  // recovery logic happy - it should not be done and hence this
+  // should be removed once MESOS-1328 is fixed.
   if (checkpoint) {
     const string& path = slave::paths::getForkedPidPath(
         slave::paths::getMetaRootDir(flags.work_dir),
