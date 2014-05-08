@@ -264,14 +264,12 @@ public:
         userOption,
         message.slave_id(),
         slave,
-        false);
-    /*
+        false)
       .onAny(defer(
         self(),
         &ReceiveProcess::reply<LaunchResult>,
         from,
         lambda::_1));
-        */
   }
 
   void containers(const UPID& from)
@@ -541,9 +539,6 @@ public:
   {
     // This implementation does not persist any states, hence it does
     // need or support an internal recovery.
-
-    sleep(1);
-    cerr << "recover is done" << endl;
     return 0;
   }
 
@@ -562,16 +557,12 @@ public:
     LaunchRequest wrapped;
     wrapped.mutable_message()->CopyFrom(received.get());
 
-/*
     Option<Error> result = oneWayThunk<LaunchRequest, LaunchResult>(wrapped);
     if (result.isSome()) {
       cerr << "Launch failed: " << result.get().message
            << endl;
       return 1;
     }
-    */
-    process::post(pid, wrapped);
-
     return 0;
   }
 
@@ -737,8 +728,6 @@ int main(int argc, char** argv)
     usage(argv[0], methods.keys());
     exit(1);
   }
-
-  cerr << "command " << command << " now called." << endl;
 
   return methods[command]();
 }
