@@ -429,6 +429,29 @@ Future<Nothing> ExternalContainerizerProcess::launch(
                    "' failed: " + invoked.error());
   }
 
+  // Checkpoint the executor's pid if requested.
+  if (checkpoint) {
+    const string& path = slave::paths::getForkedPidPath(
+        slave::paths::getMetaRootDir(flags.work_dir),
+        slaveId,
+        executor.framework_id(),
+        executor.executor_id(),
+        containerId);
+
+    LOG(INFO) << "Checkpointing executor's forked pid " << invoked.get().pid()
+              << " to '" << path <<  "'";
+
+    Try<Nothing> checkpointed =
+      slave::state::checkpoint(path, stringify(invoked.get().pid()));
+
+    if (checkpointed.isError()) {
+      LOG(ERROR) << "Failed to checkpoint executor's forked pid to '"
+                 << path << "': " << checkpointed.error();
+
+      return Failure("Could not checkpoint executor's pid");
+    }
+  }
+
   // Record the container launch intend.
   actives.put(containerId, Owned<Container>(new Container(sandbox)));
 

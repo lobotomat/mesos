@@ -264,7 +264,7 @@ public:
         userOption,
         message.slave_id(),
         slave,
-        message.checkpoint())
+        false)
       .onAny(defer(
         self(),
         &ReceiveProcess::reply<LaunchResult>,
