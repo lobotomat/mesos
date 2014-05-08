@@ -159,7 +159,7 @@ public:
         &Usage::container_id);
   }
 
-  // Future<hashset<ContainerID> > overload
+  // Future<hashset<ContainerID> > overload.
   void reply(const UPID& from, const Future<hashset<ContainerID> >& future)
   {
     FutureMessage message;
@@ -185,7 +185,7 @@ public:
     send(from, r);
   }
 
-  // Future<Nothing> overload
+  // Future<Nothing> overload.
   template<typename R>
   void reply(const UPID& from, const Future<Nothing>& future)
   {
@@ -205,6 +205,9 @@ public:
     send(from, r);
   }
 
+  // Answer the original request with a protobuffed result created
+  // from the dispatched future and its payload.
+  // Future<protobuf::Message> overload
   // TODO(tillt): Find a way to combine all overloads into this or
   // refactor the common code into a seperate function.
   template<typename T, typename R>
@@ -212,6 +215,7 @@ public:
   {
     FutureMessage message;
 
+    // Convert the dispatch future status into a protobuf.
     message.set_status(future.isReady()
         ? FUTURE_READY
         : future.isFailed() ? FUTURE_FAILED
@@ -220,12 +224,15 @@ public:
       message.set_message(future.failure());
     }
 
+    // Wrap both, the Future status as well as its payload into a
+    // result protobuf.
     R r;
     r.mutable_future()->CopyFrom(message);
     if (future.isReady()) {
       r.mutable_result()->CopyFrom(future.get());
     }
 
+    // Transmit the result back to the request process.
     send(from, r);
   }
 
@@ -243,11 +250,6 @@ public:
       const PID<Slave>&,
       bool) = &MesosContainerizerProcess::launch;
 
-    Option<string> userOption;
-    if (!message.user().empty()) {
-      userOption = message.user();
-    }
-
     // TODO(tillt): This smells fishy - validate its function!
     PID<Slave> slave;
     std::stringstream stream;
@@ -261,7 +263,7 @@ public:
         message.task_info(),
         message.executor_info(),
         message.directory(),
-        userOption,
+        message.user().empty() ? None() : Option<string>(message.user()),
         message.slave_id(),
         slave,
         false)
@@ -435,7 +437,6 @@ public:
 
     return None();
   }
-
 
   // Prepare the MesosContainerizerProcess to use posix-isolation,
   // setup the process IO-API and serialize the UPID to the filesystem.
