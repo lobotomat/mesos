@@ -65,7 +65,7 @@ namespace slave {
 // Check src/examples/python/test_containerizer.py for a rough
 // implementation template of this protocol.
 
-// For debugging purposes of an external containerizer progra,, it
+// For debugging purposes of an external containerizer program, it
 // might be helpful to enable verbose logging on the slave (GLOG_v=2).
 
 class ExternalContainerizerProcess;

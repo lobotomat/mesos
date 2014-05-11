@@ -346,8 +346,12 @@ Future<Nothing> ExternalContainerizerProcess::__recover(
           containerId);
 
       Option<string> user = None();
-      if (flags.switch_user && framework.info.isSome()) {
-        user = framework.info.get().user();
+      if (flags.switch_user) {
+        if (executor.info.isSome() && executor.info.command().has_user()) {
+          user = executor.info.command().user();
+        } else if (framework.info.isSome()) {
+          user = framework.info.get().user();
+        }
       }
 
       Sandbox sandbox(directory, user);
@@ -359,6 +363,10 @@ Future<Nothing> ExternalContainerizerProcess::__recover(
       // to be wrong, the containerizer::Termination delivered by the
       // subsequent wait invocation will tell us.
       actives[containerId]->launched.set(Nothing());
+
+      VLOG(2) << "Recovered executor '" << executor.id
+              << "' of framework " << framework.id
+              << " containerId '" << containerId << "'";
     }
   }
 
@@ -601,9 +609,6 @@ void ExternalContainerizerProcess::__wait(
     // Set the promise to alert others waiting on this container.
     actives[containerId]->termination.set(termination.get());
   }
-
-  // The container has been waited on, we can safely cleanup now.
-  cleanup(containerId);
 }
 
 
@@ -808,7 +813,13 @@ void ExternalContainerizerProcess::_destroy(const ContainerID& containerId)
   if (invoked.isError()) {
     LOG(ERROR) << "Destroy of container '" << containerId
                << "' failed: " << invoked.error();
+    // Additionally to the optional external destroy-command, we need to
+    // terminate the external containerizer's "wait" process.
     unwait(containerId);
+
+    // Slave has asked us to destroy, hence we can now remove all
+    // internal states of this container.
+    cleanup(containerId);
     return;
   }
 
@@ -827,20 +838,19 @@ void ExternalContainerizerProcess::__destroy(
 {
   VLOG(1) << "Destroy callback triggered on container '" << containerId << "'";
 
-  if (!actives.contains(containerId)) {
-    LOG(ERROR) << "Container '" << containerId.value() << "' not running";
-    return;
-  }
+  // Additionally to the optional external destroy-command, we need to
+  // terminate the external containerizer's "wait" process.
+  unwait(containerId);
+
+  // Slave has asked us to destroy, hence we can now remove all
+  // internal states of this container.
+  cleanup(containerId);
 
   Option<Error> error = validate(future);
   if (error.isSome()) {
     LOG(ERROR) << "Destroy of container '" << containerId
                << "' failed: " << error.get().message;
   }
-
-  // Additionally to the optional external destroy-command, we need to
-  // terminate the external containerizer's "wait" process.
-  unwait(containerId);
 }
 
 
@@ -887,6 +897,11 @@ Future<hashset<ContainerID> > ExternalContainerizerProcess::_containers(
   hashset<ContainerID> result;
   foreach(const ContainerID& containerId, containers.get().containers()) {
     result.insert(containerId);
+    VLOG(2) << "container '" << containerId << "' active according to ECP";
+    if (!actives.contains(containerId)) {
+      LOG(ERROR) << "We do not know anything about container '"
+                 << containerId << "'";
+    }
   }
 
   return result;
@@ -895,7 +910,7 @@ Future<hashset<ContainerID> > ExternalContainerizerProcess::_containers(
 
 void ExternalContainerizerProcess::cleanup(const ContainerID& containerId)
 {
-  VLOG(1) << "Callback performing final cleanup of running state";
+  VLOG(1) << "Final cleanup for container '" << containerId << "' triggered";
 
   if (actives.contains(containerId)) {
     actives.erase(containerId);
@@ -988,6 +1003,8 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
   // Prepare a default environment.
   map<string, string> environment;
   environment["MESOS_LIBEXEC_DIRECTORY"] = flags.launcher_dir;
+  environment["MESOS_SLAVE_WORK_DIRECTORY"] = flags.work_dir;
+  VLOG(1) << "MESOS_SLAVE_WORK_DIRECTORY=" << flags.work_dir;
 
   // Update default environment with command specific one.
   if (commandEnvironment.isSome()) {
@@ -1054,7 +1071,6 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
     if (err.isError()) {
       return Error("Failed to redirect stderr: " + err.error());
     }
-
     if (sandbox.get().user.isSome()) {
       Try<Nothing> chown = os::chown(
           sandbox.get().user.get(),
