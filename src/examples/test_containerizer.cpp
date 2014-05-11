@@ -41,9 +41,10 @@
 #include <mesos/mesos.hpp>
 #include <mesos/containerizer/containerizer.hpp>
 
+#include <process/delay.hpp>
+#include <process/dispatch.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
-#include <process/dispatch.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
@@ -118,10 +119,15 @@ static Try<T> validate(const Future<T>& future)
 }
 
 
+static string thunkDirectory(const string& directory)
+{
+  return path::join(directory, "test_containerizer");
+}
+
+
 namespace mesos {
 namespace internal {
 namespace slave {
-
 
 // Communication process allowing the MesosContainerizerProcess to be
 // controlled via remote proto messages.
@@ -129,13 +135,15 @@ class ThunkProcess : public ProtobufProcess<ThunkProcess>
 {
 public:
   ThunkProcess(MesosContainerizerProcess* containerizer)
-  : containerizer(containerizer) {}
+  : containerizer(containerizer), garbageCollecting(false) {}
 
+private:
   void initialize()
   {
-    install<ShutdownMessage>(
-        &ThunkProcess::shutdown);
+    cerr << "Launching containerizer..." << endl;
+    process::spawn(containerizer, true);
 
+    cerr << "Installing handlers" << endl;
     install<LaunchRequest>(
         &ThunkProcess::launch,
         &LaunchRequest::message);
@@ -159,6 +167,62 @@ public:
     install<Usage>(
         &ThunkProcess::usage,
         &Usage::container_id);
+
+    cerr << "Fully up and running" << endl;
+
+    int pipe = open(fifoPath.c_str(), O_WRONLY);
+    if (pipe < 0) {
+      cerr << "Failed open fifo" << endl;
+      return;
+    }
+    // Sync parent and child process.
+    int sync = 42;
+    while (::write(pipe, &sync, sizeof(sync)) == -1 &&
+           errno == EINTR);
+    close(pipe);
+
+    cerr << "Synced" << endl;
+  }
+
+  void startGarbageCollecting()
+  {
+    if (garbageCollecting) {
+      return;
+    }
+    cerr << "Started garbage collection" << endl;
+    garbageCollecting = true;
+    garbageCollect();
+  }
+
+  void garbageCollect()
+  {
+    cerr << "checking containers for gc" << endl;
+    dispatch(
+        containerizer->self(),
+        &MesosContainerizerProcess::containers)
+      .onReady(lambda::bind(
+          &Self::_garbageCollect,
+          this,
+          lambda::_1));
+  }
+
+  void _garbageCollect(const hashset<ContainerID>& containers)
+  {
+    if(containers.size()) {
+      cerr << "We still have containers active" << endl;
+      // Garbage collect forever.
+      process::delay(Seconds(1), self(), &Self::garbageCollect);
+      return;
+    }
+
+    cerr << "No more containers active, terminate!" << endl;
+
+    // When no containers are active, shutdown containerizer.
+    terminate(containerizer->self());
+    process::wait(containerizer->self());
+
+    // Suicide.
+    terminate(this->self());
   }
 
   // Future<hashset<ContainerID> > overload.
@@ -242,6 +306,7 @@ public:
       const UPID& from,
       const Launch& message)
   {
+    cerr << "Received launch message" << endl;
     Future<Nothing> (MesosContainerizerProcess::*launch)(
       const ContainerID&,
       const TaskInfo&,
@@ -259,7 +324,7 @@ public:
     stream >> slave;
 
     dispatch(
-        containerizer,
+        containerizer->self(),
         launch,
         message.container_id(),
         message.task_info(),
@@ -269,21 +334,25 @@ public:
         message.slave_id(),
         slave,
         false)
-      .onAny(defer(
-        self(),
-        &ThunkProcess::reply<LaunchResult>,
+      .onAny(lambda::bind(
+        &Self::reply<LaunchResult>,
+        this,
         from,
-        lambda::_1));
+        lambda::_1))
+      .onReady(lambda::bind(
+        &Self::startGarbageCollecting,
+        this));
   }
 
   void containers(const UPID& from)
   {
+    cerr << "Received containers message" << endl;
     void (ThunkProcess::*reply)(
         const UPID&,
         const Future<hashset<ContainerID> >&) = &ThunkProcess::reply;
 
     dispatch(
-        containerizer,
+        containerizer->self(),
         &MesosContainerizerProcess::containers)
       .onAny(lambda::bind(
           reply,
@@ -295,7 +364,7 @@ public:
   void wait(const UPID& from, const ContainerID& containerId)
   {
     dispatch(
-        containerizer,
+        containerizer->self(),
         &MesosContainerizerProcess::wait,
         containerId)
       .onAny(lambda::bind(
@@ -308,7 +377,7 @@ public:
   void usage(const UPID& from, const ContainerID& containerId)
   {
     dispatch(
-        containerizer,
+        containerizer->self(),
         &MesosContainerizerProcess::usage,
         containerId)
       .onAny(lambda::bind(
@@ -321,7 +390,7 @@ public:
   void destroy(const UPID& from, const ContainerID& containerId)
   {
     dispatch(
-        containerizer,
+        containerizer->self(),
         &MesosContainerizerProcess::destroy,
         containerId);
   }
@@ -336,7 +405,7 @@ public:
       resources += resource;
     }
     dispatch(
-        containerizer,
+        containerizer->self(),
         &MesosContainerizerProcess::update,
         containerId,
         resources)
@@ -347,15 +416,11 @@ public:
           lambda::_1));
   }
 
-  void shutdown()
-  {
-    cerr << "Received shutdown" << endl;
-    terminate(containerizer);
-    process::wait(containerizer);
-  }
-
-private:
   MesosContainerizerProcess* containerizer;
+
+public:
+  string fifoPath;
+  bool garbageCollecting;
 };
 
 
@@ -368,20 +433,115 @@ private:
 class TestContainerizer
 {
 public:
-  TestContainerizer() : workDir("/tmp/mesos-test-containerizer-daemon") {}
-  virtual ~TestContainerizer() {}
+  TestContainerizer(const string& argv0, const string& directory)
+  : argv0(argv0), directory(directory) {}
 
-  Option<Error> initialize()
+private:
+  // Prepare the MesosContainerizerProcess to use posix-isolation,
+  Try<MesosContainerizerProcess*> createContainerizer(
+      const string& workDir)
   {
-    // Fetch the serialized UPID of the daemon process.
+    Flags flags;
+    flags.work_dir = workDir;
+    flags.launcher_dir = path::join(BUILD_DIR, "src");
+
+    // Create a MesosContainerizerProcess using isolators and a launcher.
+    vector<Owned<Isolator> > isolators;
+
+    Try<Isolator*> cpuIsolator = PosixCpuIsolatorProcess::create(flags);
+    if (cpuIsolator.isError()) {
+      return Error("Could not create PosixCpuIsolator: " +
+          cpuIsolator.error());
+    }
+    isolators.push_back(Owned<Isolator>(cpuIsolator.get()));
+
+    Try<Isolator*> memIsolator = PosixMemIsolatorProcess::create(flags);
+    if (memIsolator.isError()) {
+      return Error("Could not create PosixMemIsolator: " +
+          memIsolator.error());
+    }
+    isolators.push_back(Owned<Isolator>(memIsolator.get()));
+
+    Try<Launcher*> launcher = PosixLauncher::create(flags);
+    if (launcher.isError()) {
+      return Error("Could not create PosixLauncher: " +
+          launcher.error());
+    }
+
+    MesosContainerizerProcess* containerizer =
+      new MesosContainerizerProcess(
+          flags,
+          true,
+          Owned<Launcher>(launcher.get()),
+          isolators);
+
+    return containerizer;
+  }
+
+  Option<Error> fork()
+  {
+    const string& workDirectory(thunkDirectory(directory));
+
+    cerr << "Forking daemon...." << endl;
+
+    // Create test-comtainerizer work directory.
+    CHECK_SOME(os::mkdir(workDirectory))
+      << "Failed to create test-containerizer work directory '"
+      << workDirectory << "'";
+
+    // Create a named pipe for syncing parent and child process.
+    string fifoPath = path::join(workDirectory, "fifo");
+    if (mkfifo(fifoPath.c_str(), 0666) < 0) {
+      return ErrnoError("Failed to create fifo");
+    }
+
+    // Spawn the process and wait for it in a child process.
+    int pid = ::fork();
+    if (pid == -1) {
+      return ErrnoError("Failed to fork");;
+    }
+    if (pid == 0) {
+      cerr << "Exec: " << argv0 << endl;
+      execl(argv0.c_str(), argv0.c_str(), "setup", NULL);
+      abort();
+    }
+
+    // We are in the parent context.
+    // Sync parent and child process.
+    int pipe = open(fifoPath.c_str(), O_RDONLY);
+    if (pipe < 0) {
+      return ErrnoError("Failed open fifo");
+    }
+    int sync;
+    while (::read(pipe, &sync, sizeof(sync)) == -1 &&
+           errno == EINTR);
+    close(pipe);
+
+    cerr << "synced: " << sync << endl;
+
+    return None();
+  }
+
+  // Tries to get the PID of a running daemon. If no daemon is active,
+  // it spawns one and serializes its PID to the filesystem.
+  Try<PID<ThunkProcess> > initialize()
+  {
+    const string& workDirectory(thunkDirectory(directory));
+    // An existing pid-file signals that the daemon is active.
+    if (!os::isfile(path::join(workDirectory, "pid"))) {
+      return Error("PID-file does not exist");
+    }
+
+    PID<ThunkProcess> pid;
     try {
-      std::ifstream file(path::join(workDir, "pid"));
+      std::ifstream file(path::join(workDirectory, "pid"));
       file >> pid;
       file.close();
     } catch(std::exception e) {
       return Error(string("Failed reading PID: ") + e.what());
     }
-    return None();
+    cerr << "Existing daemon pid: " << pid << endl;
+    return pid;
   }
 
   // Transmit a message via socket to the MesosContainerizer, block
@@ -389,15 +549,17 @@ public:
   template <typename T, typename R>
   Try<R> thunk(const T& t)
   {
-    Option<Error> init = initialize();
-    if (init.isSome()) {
-      return Error("Failed to initialize: " + init.get().message);
+    Try<PID<ThunkProcess> > pid = initialize();
+    if (pid.isError()) {
+      return Error("Failed to initialize: " + pid.error());
     }
+
+    cerr << "Thunking message..." << endl;
 
     // Send a request and receive an answer via process protobuf
     // exchange.
     struct Protocol<T, R> protocol;
-    Future<R> future = protocol(pid, t);
+    Future<R> future = protocol(pid.get(), t);
 
     future.await();
 
@@ -405,6 +567,8 @@ public:
     if (r.isError()) {
       return Error("Exchange failed: " + r.error());
     }
+
+    cerr << "...thunking done" << endl;
 
     return r;
   }
@@ -428,99 +592,48 @@ public:
     return None();
   }
 
-  // Prepare the MesosContainerizerProcess to use posix-isolation,
-  // setup the process IO-API and serialize the UPID to the filesystem.
+public:
   int setup()
   {
-    Flags flags;
+    const string& workDirectory(thunkDirectory(directory));
 
-    os::mkdir(workDir);
-
-    flags.work_dir = workDir;
-
-    flags.launcher_dir = path::join(BUILD_DIR, "src");
-
-    // Create a MesosContainerizerProcess using isolators and a launcher.
-    vector<Owned<Isolator> > isolators;
-
-    Try<Isolator*> cpuIsolator = PosixCpuIsolatorProcess::create(flags);
-    if (cpuIsolator.isError()) {
-      cerr << "Could not create PosixCpuIsolator: " << cpuIsolator.error()
-           << endl;
-      return 1;
-    }
-    isolators.push_back(Owned<Isolator>(cpuIsolator.get()));
-
-    Try<Isolator*> memIsolator = PosixMemIsolatorProcess::create(flags);
-    if (memIsolator.isError()) {
-      cerr << "Could not create PosixMemIsolator: " << memIsolator.error()
-           << endl;
-      return 1;
-    }
-    isolators.push_back(Owned<Isolator>(memIsolator.get()));
-
-    Try<Launcher*> launcher = PosixLauncher::create(flags);
-    if (launcher.isError()) {
-      cerr << "Could not create PosixLauncher: " << launcher.error() << endl;
+    Try<MesosContainerizerProcess*> containerizer =
+      createContainerizer(directory);
+    if (containerizer.isError()) {
+      cerr << "Failed to create MesosContainerizerProcess: "
+           << containerizer.error();
       return 1;
     }
 
-    // We now spawn two processes in this context; the subclassed
-    // MesosContainerizerProcess (TestContainerizerProcess) as well
-    // as a ProtobufProcess (ThunkProcess) for covering the
-    // communication with the former.
+    // Create a named pipe for syncing parent and child process.
+    string fifoPath = path::join(workDirectory, "fifo");
 
-    MesosContainerizerProcess* containerizer =
-        new MesosContainerizerProcess(
-            flags,
-            true,
-            Owned<Launcher>(launcher.get()), isolators);
-    spawn(containerizer, false);
+    // Create our ThunkProcess, wrapping the containerizer process.
+    ThunkProcess* process = new ThunkProcess(containerizer.get());
+    process->fifoPath = fifoPath;
 
-    ThunkProcess* thunk = new ThunkProcess(containerizer);
-    spawn(thunk, false);
-
-    pid = PID<ThunkProcess>(thunk);
-
-    // Serialize the UPID.
+    // Serialize the PID to the filesystem.
     try {
-      std::fstream file(path::join(workDir, "pid"), std::ios::out);
-      file << pid;
+      std::fstream file(path::join(workDirectory, "pid"), std::ios::out);
+      file << process->self();
       file.close();
     } catch(std::exception e) {
       cerr << "Failed writing PID: " << e.what() << endl;
       return 1;
     }
 
-    cerr << "PID: " << pid << endl;
+    // Run until we get terminated via teardown.
+    process::spawn(process, true);
+    cerr << "Daemon is running" << endl;
 
-    // Now keep running until we get terminated via teardown.
-    process::wait(thunk);
-    delete thunk;
-    delete containerizer;
+    process::wait(process);
+    cerr << "Daemon terminated" << endl;
 
-    return 0;
-  }
-
-  // Shutdown the daemon.
-  int teardown()
-  {
-    Option<Error> init = initialize();
-    if (init.isSome()) {
-      cerr << "Failed to initialize: " << init.get().message << endl;
-      return 1;
-    }
-
-    ShutdownMessage message;
-    process::post(pid, message);
-    cerr << "Sending shutdown message.." << endl;
-
-    sleep(1);
-
-    Try<Nothing> rmdir = os::rmdir(workDir);
+    Try<Nothing> rmdir = os::rmdir(workDirectory);
     if (rmdir.isError()) {
-      cerr << "Failed to remove '" << workDir << "': "
+      cerr << "Failed to remove '" << workDirectory << "': "
            << rmdir.error() << endl;
+      return 1;
     }
 
     return 0;
@@ -538,6 +651,11 @@ public:
   // protobuf via stdin.
   int launch()
   {
+    const string& workDirectory(thunkDirectory(directory));
+    if (!os::isfile(path::join(workDirectory, "pid"))) {
+      fork();
+    }
+
     Result<Launch> received = receive<Launch>();
     if (received.isError()) {
       cerr << "Failed to receive from pipe: " << received.error() << endl;
@@ -633,27 +751,27 @@ public:
   // Terminate the containerized executor.
   int destroy()
   {
-    Option<Error> init = initialize();
-    if (init.isSome()) {
-      cerr << "Failed to initialize: " + init.get().message << endl;
-      return 1;
-    }
-
-    // Receive the message via pipe, if needed.
+    // Receive the message via pipe.
     Result<Destroy> received = receive<Destroy>();
     if (received.isError()) {
       cerr << "Failed to receive from pipe: " + received.error() << endl;
       return 1;
     }
 
-    process::post(pid, received.get());
+    Try<PID<ThunkProcess> > pid = initialize();
+    if (pid.isError()) {
+      cerr << "Failed to initialize: " << pid.error() << endl;
+      return 1;
+    }
+
+    process::post(pid.get(), received.get());
 
     return 0;
   }
 
 private:
-  PID<ThunkProcess> pid;
-  string workDir;
+  string argv0;
+  string directory;
 };
 
 } // namespace slave {
@@ -680,15 +798,18 @@ int main(int argc, char** argv)
   using namespace internal;
   using namespace slave;
 
-  hashmap<string, function<int()> > methods;
+  CHECK(os::hasenv("MESOS_SLAVE_WORK_DIRECTORY"))
+    << "Missing MESOS_SLAVE_WORK_DIRECTORY environment variable";
+  string directory = os::getenv("MESOS_SLAVE_WORK_DIRECTORY");
 
-  TestContainerizer containerizer;
+  cerr << "directory: " << directory << endl;
 
-  // Daemon specific implementations.
+  hashmap<string, function<int(const string&)> > methods;
+
+  TestContainerizer containerizer(argv[0], directory);
+
   methods["setup"] = lambda::bind(
       &TestContainerizer::setup, &containerizer);
-  methods["teardown"] = lambda::bind(
-      &TestContainerizer::teardown, &containerizer);
 
   // Containerizer specific implementations.
   methods["recover"] = lambda::bind(
@@ -724,5 +845,11 @@ int main(int argc, char** argv)
     exit(1);
   }
 
-  return methods[command]();
+  cerr << "Invoking " << command << " command" << endl;
+
+  int ret = methods[command](directory);
+
+  cerr << command  << " has completed." << endl;
+
+  return ret;
 }
