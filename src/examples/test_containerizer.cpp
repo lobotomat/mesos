@@ -54,6 +54,8 @@
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
 
+#include "examples/test_containerizer.pb.h"
+
 #include "messages/messages.hpp"
 
 #include "slave/flags.hpp"
@@ -62,7 +64,6 @@
 
 #include "slave/containerizer/isolators/posix.hpp"
 
-#include "examples/test_containerizer.pb.h"
 
 using namespace mesos;
 using namespace mesos::containerizer;
@@ -444,6 +445,7 @@ private:
     Flags flags;
     flags.work_dir = workDir;
     flags.launcher_dir = path::join(BUILD_DIR, "src");
+    //flags.launcher_dir = path::join(tests::flags.build_dir, "src");
 
     // Create a MesosContainerizerProcess using isolators and a launcher.
     vector<Owned<Isolator> > isolators;
@@ -503,6 +505,7 @@ private:
     if (pid == 0) {
       cerr << "Exec: " << argv0 << endl;
       execl(argv0.c_str(), argv0.c_str(), "setup", NULL);
+      cerr << "setup terminated" << endl;
       abort();
     }
 
