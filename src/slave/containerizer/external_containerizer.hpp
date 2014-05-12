@@ -48,10 +48,19 @@ namespace slave {
 // usage < containerizer::Usage > mesos::ResourceStatistics
 // wait < containerizer::Wait > containerizer::Termination
 // destroy < containerizer::Destroy
+// containers > containerizer::Containers
 //
 // 'wait' on the external containerizer side is expected to block
 // until the task command/executor has terminated.
 //
+// Additionally, we have the following environment variable setup
+// for external containerizer programs:
+// MESOS_LIBEXEC_DIRECTORY = path to mesos-executor, mesos-usage, ...
+// MESOS_WORK_DIRECTORY = slave work directory. This should be used
+// for distiguishing slave instances.
+// MESOS_DEFAULT_CONTAINER_IMAGE = default image as provided via
+// slave flags (default_container_image). This variable is provided
+// only in calls to "launch".
 
 // Check src/examples/python/test_containerizer.py for a rough
 // implementation template of this protocol.
@@ -236,6 +245,11 @@ private:
       const ContainerID& containerId,
       const process::Future<Option<int> >& future);
 
+  process::Future<hashset<ContainerID> > _containers(
+      const process::Future<tuples::tuple<
+          process::Future<Result<containerizer::Containers> >,
+          process::Future<Option<int> > > >& future);
+
   // Abort a possibly pending "wait" in the external containerizer
   // process.
   void unwait(const ContainerID& containerId);
@@ -246,11 +260,14 @@ private:
 
   Try<process::Subprocess> invoke(
       const std::string& command,
-      const Sandbox& sandbox,
+      const Option<Sandbox>& sandbox = None(),
+      const Option<std::map<std::string, std::string> >& environment = None());
+
+  Try<process::Subprocess> invoke(
+      const std::string& command,
       const google::protobuf::Message& message,
-      const std::map<std::string, std::string>& environment =
-        // Default in parens due to: http://llvm.org/bugs/show_bug.cgi?id=13657
-        (std::map<std::string, std::string>()));
+      const Option<Sandbox>& sandbox = None(),
+      const Option<std::map<std::string, std::string> >& environment = None());
 };
 
 
