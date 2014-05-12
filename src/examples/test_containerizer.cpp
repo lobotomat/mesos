@@ -218,12 +218,14 @@ private:
 
     cerr << "No more containers active, terminate!" << endl;
 
+    /*
     // When no containers are active, shutdown containerizer.
     terminate(containerizer->self());
     process::wait(containerizer->self());
 
     // Suicide.
     terminate(this->self());
+    */
   }
 
   // Future<hashset<ContainerID> > overload.
@@ -504,9 +506,12 @@ private:
     }
     if (pid == 0) {
       cerr << "Exec: " << argv0 << endl;
-      execl(argv0.c_str(), argv0.c_str(), "setup", NULL);
+      string command = argv0 +
+          " setup >/tmp/test-containerizer-logs/daemon";
+      execl("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL);
+      //execl(argv0.c_str(), argv0.c_str(), "setup", NULL);
       cerr << "setup terminated" << endl;
-      abort();
+      exit(0);
     }
 
     // We are in the parent context.
@@ -586,11 +591,15 @@ private:
       return result.error();
     }
 
+    cerr << "Piping result back..." << endl;
+
     // Send the payload message via pipe.
     Try<Nothing> sent = send(result.get().result());
     if (sent.isError()) {
       return Error("Failed to send to pipe: " + sent.error());
     }
+
+    cerr << "...piping done" << endl;
 
     return None();
   }

@@ -1134,7 +1134,7 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
       .onAny(bind(&os::close, err.get()));
   }
   */
-  string folder = "/tmp/test-containerizer-weirds";
+  string folder = "/tmp/test-containerizer-logs";
   os::mkdir(folder);
     Try<int> err = os::open(
         path::join(folder, "stderr"),
