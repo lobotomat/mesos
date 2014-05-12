@@ -133,6 +133,14 @@ static Try<T> result(
 }
 
 
+Try<ExternalContainerizer*> ExternalContainerizer::create(
+    const Flags& flags,
+    bool local)
+{
+  return new ExternalContainerizer(flags);
+}
+
+
 ExternalContainerizer::ExternalContainerizer(const Flags& flags)
 {
   process = new ExternalContainerizerProcess(flags);
@@ -609,6 +617,8 @@ void ExternalContainerizerProcess::__wait(
     // Set the promise to alert others waiting on this container.
     actives[containerId]->termination.set(termination.get());
   }
+
+  cleanup(containerId);
 }
 
 
