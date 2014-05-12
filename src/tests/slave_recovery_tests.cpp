@@ -49,6 +49,7 @@
 #include "slave/state.hpp"
 
 #include "slave/containerizer/containerizer.hpp"
+#include "slave/containerizer/external_containerizer.hpp"
 
 #include "messages/messages.hpp"
 
@@ -128,8 +129,9 @@ public:
 
 
 // Containerizer types to run the tests.
-typedef ::testing::Types<slave::MesosContainerizer> ContainerizerTypes;
-
+typedef ::testing::Types<
+    slave::MesosContainerizer,
+    slave::ExternalContainerizer> ContainerizerTypes;
 
 TYPED_TEST_CASE(SlaveRecoveryTest, ContainerizerTypes);
 
@@ -562,13 +564,11 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
-  Clock::pause();
-
   AWAIT_READY(_recover);
 
-  Clock::settle(); // Wait for slave to schedule reregister timeout.
-
-  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
+  Clock::pause();
+//  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
+//  Clock::settle(); // Wait for slave to schedule reregister timeout.
 
   // Now advance time until the reaper reaps the executor.
   while (status.isPending()) {

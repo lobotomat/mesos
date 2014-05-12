@@ -414,9 +414,8 @@ Future<Nothing> ExternalContainerizerProcess::launch(
   launch.mutable_container_id()->CopyFrom(containerId);
   if (taskInfo.isSome()) {
     launch.mutable_task_info()->CopyFrom(taskInfo.get());
-  } else {
-    launch.mutable_executor_info()->CopyFrom(executor);
   }
+  launch.mutable_executor_info()->CopyFrom(executor);
   launch.set_directory(directory);
   if (user.isSome()) {
     launch.set_user(user.get());
@@ -436,6 +435,32 @@ Future<Nothing> ExternalContainerizerProcess::launch(
   if (invoked.isError()) {
     return Failure("Launch of container '" + containerId.value() +
                    "' failed: " + invoked.error());
+  }
+
+  // Checkpoint the executor's pid if requested.
+  // TODO(tillt): This is in here just to get the current slave's
+  // recovery logic happy - it should not be done and hence this
+  // should be removed once MESOS-1328 is fixed.
+  if (checkpoint) {
+    const string& path = slave::paths::getForkedPidPath(
+        slave::paths::getMetaRootDir(flags.work_dir),
+        slaveId,
+        executor.framework_id(),
+        executor.executor_id(),
+        containerId);
+
+    LOG(INFO) << "Checkpointing executor's forked pid " << invoked.get().pid()
+              << " to '" << path <<  "'";
+
+    Try<Nothing> checkpointed =
+      slave::state::checkpoint(path, stringify(invoked.get().pid()));
+
+    if (checkpointed.isError()) {
+      LOG(ERROR) << "Failed to checkpoint executor's forked pid to '"
+                 << path << "': " << checkpointed.error();
+
+      return Failure("Could not checkpoint executor's pid");
+    }
   }
 
   // Record the container launch intend.
@@ -584,9 +609,6 @@ void ExternalContainerizerProcess::__wait(
     // Set the promise to alert others waiting on this container.
     actives[containerId]->termination.set(termination.get());
   }
-
-  // The container has been waited on, we can safely cleanup now.
-  cleanup(containerId);
 }
 
 

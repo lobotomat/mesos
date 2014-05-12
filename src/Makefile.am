@@ -857,6 +857,17 @@ test_executor_SOURCES = examples/test_executor.cpp
 test_executor_CPPFLAGS = $(MESOS_CPPFLAGS)
 test_executor_LDADD = libmesos.la
 
+check_PROGRAMS += test-containerizer
+test_containerizer_SOURCES = 						\
+  examples/test_containerizer.proto					\
+  examples/test_containerizer.pb.cc					\
+  examples/test_containerizer.pb.h					\
+  examples/test_containerizer.cpp
+test_containerizer_CPPFLAGS = 						\
+  -DBUILD_DIR=\"$(abs_top_builddir)\" 					\
+  $(MESOS_CPPFLAGS)
+test_containerizer_LDADD = libmesos.la
+
 check_PROGRAMS += long-lived-framework
 long_lived_framework_SOURCES = examples/long_lived_framework.cpp
 long_lived_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
