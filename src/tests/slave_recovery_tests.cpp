@@ -127,6 +127,7 @@ public:
   }
 };
 
+//    slave::MesosContainerizer,
 
 // Containerizer types to run the tests.
 typedef ::testing::Types<

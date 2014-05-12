@@ -428,11 +428,10 @@ void ContainerizerTest<slave::MesosContainerizer>::TearDown()
 slave::Flags ContainerizerTest<slave::ExternalContainerizer>::CreateSlaveFlags()
 {
   slave::Flags flags = MesosTest::CreateSlaveFlags();
-  Flags testFlags;
 
   flags.isolation = "external";
   flags.containerizer_path =
-    testFlags.build_dir + "/src/test-containerizer";
+    path::join(tests::flags.build_dir, "/src/test-containerizer");
 
   return flags;
 }

@@ -49,8 +49,8 @@
 #include "master/master.hpp"
 
 #include "slave/containerizer/containerizer.hpp"
-#include "slave/containerizer/mesos_containerizer.hpp"
 #include "slave/containerizer/external_containerizer.hpp"
+#include "slave/containerizer/mesos_containerizer.hpp"
 #include "slave/slave.hpp"
 
 #include "tests/cluster.hpp"
