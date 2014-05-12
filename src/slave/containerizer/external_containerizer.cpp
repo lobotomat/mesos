@@ -554,6 +554,12 @@ Future<containerizer::Termination> ExternalContainerizerProcess::_wait(
     return Failure("Container '" + containerId.value() + "' not running");
   }
 
+  // We must not run multiple "wait" invocations on the same container.
+  if (actives[containerId]->pid.isSome()) {
+    LOG(WARNING) << "Allready waiting for " << containerId;
+    return actives[containerId]->termination.future();
+  }
+
   containerizer::Wait wait;
   wait.mutable_container_id()->CopyFrom(containerId);
 
@@ -603,6 +609,48 @@ void ExternalContainerizerProcess::__wait(
 
   if (!actives.contains(containerId)) {
     LOG(ERROR) << "Container '" << containerId << "' not running";
+    return;
+  }
+
+  if (!future.isReady()) {
+    actives[containerId]->termination.fail("Future not ready");
+    cleanup(containerId);
+    return;
+  }
+
+  Future<Option<int> > statusFuture = tuples::get<1>(future.get());
+  if (!statusFuture.isReady()) {
+    actives[containerId]->termination.fail("Future not ready");
+    cleanup(containerId);
+    return;
+  }
+
+  Option<int> status = statusFuture.get();
+  if (status.isNone()) {
+    actives[containerId]->termination.fail(
+        "External containerizer has no status available");
+    cleanup(containerId);
+    return ;
+  }
+
+  // The status is a waitpid-result which has to be checked for SIGNAL
+  // based termination before masking out the exit-code.
+  if (!WIFEXITED(status.get())) {
+    containerizer::Termination termination;
+    termination.set_killed(true);
+    termination.set_message(
+        string("External containerizer terminated by signal ") +
+        strsignal(WTERMSIG(status.get())));
+    actives[containerId]->termination.set(termination);
+    cleanup(containerId);
+    return;
+  }
+
+  if (WEXITSTATUS(status.get()) != 0) {
+    actives[containerId]->termination.fail(
+        "External containerizer failed (status: " +
+        stringify(WEXITSTATUS(status.get())) + ")");
+    cleanup(containerId);
     return;
   }
 
@@ -902,6 +950,7 @@ Future<hashset<ContainerID> > ExternalContainerizerProcess::_containers(
   hashset<ContainerID> result;
   foreach (const ContainerID& containerId, containers.get().containers()) {
     result.insert(containerId);
+    LOG(INFO) << "container " << containerId << "is active according to ECP.";
   }
 
   return result;
@@ -1061,6 +1110,7 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
   // Redirect output (stderr) from the external containerizer to log
   // file in the executor work directory, chown'ing it if a user is
   // specified.
+  /*
   if (sandbox.isSome()) {
     Try<int> err = os::open(
         path::join(sandbox.get().directory, "stderr"),
@@ -1083,6 +1133,20 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
     io::splice(external.get().err(), err.get())
       .onAny(bind(&os::close, err.get()));
   }
+  */
+  string folder = "/tmp/test-containerizer-weirds";
+  os::mkdir(folder);
+    Try<int> err = os::open(
+        path::join(folder, "stderr"),
+        O_WRONLY | O_CREAT | O_APPEND | O_NONBLOCK,
+        S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+
+    if (err.isError()) {
+      return Error("Failed to redirect stderr: " + err.error());
+    }
+
+    io::splice(external.get().err(), err.get())
+      .onAny(bind(&os::close, err.get()));
 
   VLOG(2) << "Subprocess pid: " << external.get().pid() << ", "
           << "output pipe: " << external.get().out();
