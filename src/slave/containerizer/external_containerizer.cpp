@@ -621,6 +621,7 @@ void ExternalContainerizerProcess::__wait(
     if (statusFuture.isReady()) {
       Option<int> status = statusFuture.get();
       if (status.isSome()) {
+        VLOG(2) << "Wait got destroyed on '" << containerId << "'";
         containerizer::Termination termination;
         // We do not enable 'killed' as the termination was not
         // induced by the containerizer itself (e.g. OOM) but
@@ -642,10 +643,13 @@ void ExternalContainerizerProcess::__wait(
     result<containerizer::Termination>(future);
 
   if (termination.isError()) {
+    VLOG(2) << "Wait termination failed on '" << containerId << "'";
     // 'wait' has failed, we need to tear down everything now.
     actives[containerId]->termination.fail(termination.error());
     unwait(containerId);
   } else {
+    VLOG(2) << "Wait termination is just fine.";
+    VLOG(2) << "Termination: " << termination.get().DebugString();
     // Set the promise to alert others waiting on this container.
     actives[containerId]->termination.set(termination.get());
   }
@@ -1118,6 +1122,9 @@ Try<Subprocess> ExternalContainerizerProcess::invoke(
 
     io::splice(external.get().err(), err.get())
       .onAny(bind(&os::close, err.get()));
+  } else {
+    // FIXME: Needs redirect to /dev/null or proper output to default
+    // log-folder to prevent pipe getting crammed.
   }
   */
   string folder = "/tmp/test-containerizer-logs";

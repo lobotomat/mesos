@@ -507,7 +507,9 @@ private:
     }
     if (pid == 0) {
       cerr << "Exec: " << argv0 << endl;
-      execl(argv0.c_str(), argv0.c_str(), "setup", NULL);
+//      execl(argv0.c_str(), argv0.c_str(), "setup", NULL);
+      string command = argv0 + " setup 2>/tmp/test-containerizer-logs/daemon_err";
+      execl("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL);
       cerr << "setup terminated" << endl;
       exit(0);
     }
@@ -662,7 +664,7 @@ public:
   {
     const string& workDirectory(thunkDirectory(directory));
 
-    // Checkis if a daemon is running, if not, it forks one.
+    // Checks if a daemon is running, if not, it forks one.
     if (!os::isfile(path::join(workDirectory, "pid"))) {
       daemonize();
     }
