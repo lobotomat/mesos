@@ -75,7 +75,6 @@ using process::PID;
 using process::Future;
 
 using std::cout;
-using std::cerr;
 using std::endl;
 using std::string;
 using std::vector;
@@ -104,15 +103,15 @@ template<typename T>
 static Try<T> validate(const Future<T>& future)
 {
   if (!future.isReady()) {
-    return Error("Outer result future "
-        + (future.isFailed() ? "failed: " + future.failure()
-                             : "got discarded"));
+    return Error("Outer result future " +
+        (future.isFailed() ? "failed: " + future.failure()
+                           : "got discarded"));
   }
 
   T result = future.get();
   if (result.future().status() != examples::FUTURE_READY) {
-    return Error("Inner result future (protobuffed) "
-        + (result.future().status() ==  examples::FUTURE_FAILED
+    return Error("Inner result future (protobuffed) " +
+        (result.future().status() ==  examples::FUTURE_FAILED
             ? "failed: " + future.failure()
             : "got discarded"));
   }
@@ -142,10 +141,10 @@ public:
 private:
   void initialize()
   {
-    cerr << "Launching containerizer..." << endl;
+    VLOG(2) << "Launching containerizer";
     process::spawn(containerizer, true);
 
-    cerr << "Installing handlers" << endl;
+    VLOG(2) << "Installing handlers";
     install<LaunchRequest>(
         &ThunkProcess::launch,
         &LaunchRequest::message);
@@ -170,11 +169,11 @@ private:
         &ThunkProcess::usage,
         &Usage::container_id);
 
-    cerr << "Fully up and running" << endl;
+    VLOG(2) << "Fully up and running";
 
     int pipe = open(fifoPath.c_str(), O_WRONLY);
     if (pipe < 0) {
-      cerr << "Failed open fifo" << endl;
+      LOG(ERROR) << "Failed open fifo";
       return;
     }
     // Sync parent and child process.
@@ -183,7 +182,7 @@ private:
            errno == EINTR);
     close(pipe);
 
-    cerr << "Synced" << endl;
+    VLOG(2) << "Synced with client invocation";
   }
 
   void startGarbageCollecting()
@@ -191,14 +190,14 @@ private:
     if (garbageCollecting) {
       return;
     }
-    cerr << "Started garbage collection" << endl;
+    VLOG(1) << "Started garbage collection";
     garbageCollecting = true;
     garbageCollect();
   }
 
   void garbageCollect()
   {
-    cerr << "checking containers for gc" << endl;
+    VLOG(1) << "Checking containers for garbage collection";
     dispatch(
         containerizer->self(),
         &MesosContainerizerProcess::containers)
@@ -211,13 +210,13 @@ private:
   void _garbageCollect(const hashset<ContainerID>& containers)
   {
     if(containers.size()) {
-      cerr << "We still have containers active" << endl;
+      VLOG(2) << "We still have containers active" << endl;
       // Garbage collect forever.
       process::delay(Seconds(1), self(), &Self::garbageCollect);
       return;
     }
 
-    cerr << "No more containers active, terminate!" << endl;
+    VLOG(1) << "No more containers active, terminate!";
 
     /*
     // When no containers are active, shutdown containerizer.
@@ -279,7 +278,7 @@ private:
   // from the dispatched future and its container.
   // Future<protobuf::Message> overload
   // TODO(tillt): Find a way to combine all overloads into this or
-  // refactor the common code into a seperate function.
+  // refactor the common code into a separate function.
   template<typename T, typename R>
   void reply(const UPID& from, const Future<T>& future)
   {
@@ -310,7 +309,7 @@ private:
       const UPID& from,
       const Launch& message)
   {
-    cerr << "Received launch message" << endl;
+    VLOG(1) << "Received launch message";
     Future<Nothing> (MesosContainerizerProcess::*launch)(
       const ContainerID&,
       const TaskInfo&,
@@ -350,7 +349,7 @@ private:
 
   void containers(const UPID& from)
   {
-    cerr << "Received containers message" << endl;
+    VLOG(1) << "Received containers message";
     void (ThunkProcess::*reply)(
         const UPID&,
         const Future<hashset<ContainerID> >&) = &ThunkProcess::reply;
@@ -367,6 +366,7 @@ private:
 
   void wait(const UPID& from, const ContainerID& containerId)
   {
+    VLOG(1) << "Received wait message";
     dispatch(
         containerizer->self(),
         &MesosContainerizerProcess::wait,
@@ -380,6 +380,7 @@ private:
 
   void usage(const UPID& from, const ContainerID& containerId)
   {
+    VLOG(1) << "Received usage message";
     dispatch(
         containerizer->self(),
         &MesosContainerizerProcess::usage,
@@ -393,6 +394,7 @@ private:
 
   void destroy(const UPID& from, const ContainerID& containerId)
   {
+    VLOG(1) << "Received destroy message";
     dispatch(
         containerizer->self(),
         &MesosContainerizerProcess::destroy,
@@ -404,6 +406,7 @@ private:
       const ContainerID& containerId,
       const vector<Resource>& resourceVector)
   {
+    VLOG(1) << "Received update message";
     Resources resources;
     foreach(const Resource& resource, resourceVector) {
       resources += resource;
@@ -487,7 +490,7 @@ private:
   {
     const string& workDirectory(thunkDirectory(directory));
 
-    cerr << "Forking daemon...." << endl;
+    VLOG(1) << "Forking daemon....";
 
     // Create test-comtainerizer work directory.
     CHECK_SOME(os::mkdir(workDirectory))
@@ -506,11 +509,10 @@ private:
       return ErrnoError("Failed to fork");;
     }
     if (pid == 0) {
-      cerr << "Exec: " << argv0 << endl;
+      VLOG(2) << "Exec: " << argv0;
 //      execl(argv0.c_str(), argv0.c_str(), "setup", NULL);
       string command = argv0 + " setup 2>/tmp/test-containerizer-logs/daemon_err";
       execl("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL);
-      cerr << "setup terminated" << endl;
       exit(0);
     }
 
@@ -525,7 +527,7 @@ private:
            errno == EINTR);
     close(pipe);
 
-    cerr << "synced: " << sync << endl;
+    VLOG(2) << "Synced result: " << sync;
 
     return None();
   }
@@ -547,7 +549,7 @@ private:
     } catch(std::exception e) {
       return Error(string("Failed reading PID: ") + e.what());
     }
-    cerr << "Existing daemon pid: " << pid << endl;
+    VLOG(2) << "Existing daemon pid: " << pid;
     return pid;
   }
 
@@ -561,7 +563,7 @@ private:
       return Error("Failed to initialize: " + pid.error());
     }
 
-    cerr << "Thunking message..." << endl;
+    VLOG(2) << "Thunking message...";
 
     // Send a request and receive an answer via process protobuf
     // exchange.
@@ -575,7 +577,7 @@ private:
       return Error("Exchange failed: " + r.error());
     }
 
-    cerr << "...thunking done" << endl;
+    VLOG(1) << "...thunking done";
 
     return r;
   }
@@ -590,7 +592,7 @@ private:
       return result.error();
     }
 
-    cerr << "Piping result back..." << endl;
+    VLOG(2) << "Piping result back...";
 
     // Send the payload message via pipe.
     Try<Nothing> sent = send(result.get().result());
@@ -598,7 +600,7 @@ private:
       return Error("Failed to send to pipe: " + sent.error());
     }
 
-    cerr << "...piping done" << endl;
+    VLOG(2) << "...piping done";
 
     return None();
   }
@@ -611,8 +613,8 @@ public:
     Try<MesosContainerizerProcess*> containerizer =
       createContainerizer(directory);
     if (containerizer.isError()) {
-      cerr << "Failed to create MesosContainerizerProcess: "
-           << containerizer.error();
+      LOG(ERROR) << "Failed to create MesosContainerizerProcess: "
+                 << containerizer.error();
       return 1;
     }
 
@@ -629,21 +631,20 @@ public:
       file << process->self();
       file.close();
     } catch(std::exception e) {
-      cerr << "Failed writing PID: " << e.what() << endl;
+      LOG(ERROR) << "Failed writing PID: " << e.what();
       return 1;
     }
 
     // Run until we get terminated via teardown.
     process::spawn(process, true);
-    cerr << "Daemon is running" << endl;
-
+    LOG(INFO) << "Daemon is running";
     process::wait(process);
-    cerr << "Daemon terminated" << endl;
+    LOG(INFO) << "Daemon terminated";
 
     Try<Nothing> rmdir = os::rmdir(workDirectory);
     if (rmdir.isError()) {
-      cerr << "Failed to remove '" << workDirectory << "': "
-           << rmdir.error() << endl;
+      LOG(ERROR) << "Failed to remove '" << workDirectory << "': "
+                 << rmdir.error();
       return 1;
     }
 
@@ -671,7 +672,7 @@ public:
 
     Result<Launch> received = receive<Launch>();
     if (received.isError()) {
-      cerr << "Failed to receive from pipe: " << received.error() << endl;
+      LOG(ERROR) << "Failed to receive from pipe: " << received.error();
       return 1;
     }
 
@@ -682,8 +683,7 @@ public:
 
     Try<LaunchResult> result = thunk<LaunchRequest, LaunchResult>(wrapped);
     if (result.isError()) {
-      cerr << "Launch failed: " << result.error()
-           << endl;
+      LOG(ERROR) << "Launch thunking failed: " << result.error();
       return 1;
     }
     return 0;
@@ -696,14 +696,13 @@ public:
   {
     Result<Wait> received = receive<Wait>();
     if (received.isError()) {
-      cerr << "Failed to receive from pipe: " << received.error() << endl;
+      LOG(ERROR) << "Failed to receive from pipe: " << received.error();
       return 1;
     }
 
     Option<Error> result = thunkOut<Wait, WaitResult>(received.get());
     if (result.isSome()) {
-      cerr << "Wait failed: " << result.get().message
-           << endl;
+      LOG(ERROR) << "Wait thunking failed: " << result.get().message;
       return 1;
     }
     return 0;
@@ -715,14 +714,13 @@ public:
   {
     Result<Update> received = receive<Update>();
     if (received.isError()) {
-      cerr << "Failed to receive from pipe: " << received.error() << endl;
+      LOG(ERROR) << "Failed to receive from pipe: " << received.error();
       return 1;
     }
 
     Try<UpdateResult> result = thunk<Update, UpdateResult>(received.get());
     if (result.isError()) {
-      cerr << "Update failed: " << result.error()
-           << endl;
+      LOG(ERROR) << "Update thunking failed: " << result.error();
       return 1;
     }
     return 0;
@@ -735,13 +733,13 @@ public:
   {
     Result<Usage> received = receive<Usage>();
     if (received.isError()) {
-      cerr << "Failed to receive from pipe: " << received.error() << endl;
+      LOG(ERROR) << "Failed to receive from pipe: " << received.error();
       return 1;
     }
 
     Option<Error> result = thunkOut<Usage, UsageResult>(received.get());
     if (result.isSome()) {
-      cerr << "Usage failed: " << result.get().message << endl;
+      LOG(ERROR) << "Usage thunking failed: " << result.get().message;
       return 1;
     }
     return 0;
@@ -755,7 +753,7 @@ public:
     Option<Error> result =
       thunkOut<ContainersRequest, ContainersResult>(request);
     if (result.isSome()) {
-      cerr << "Containers failed: " << result.get().message << endl;
+      LOG(ERROR) << "Containers thunking failed: " << result.get().message;
       return 1;
     }
     return 0;
@@ -767,16 +765,18 @@ public:
     // Receive the message via pipe.
     Result<Destroy> received = receive<Destroy>();
     if (received.isError()) {
-      cerr << "Failed to receive from pipe: " + received.error() << endl;
+      LOG(ERROR) << "Failed to receive from pipe: " + received.error();
       return 1;
     }
 
     Try<PID<ThunkProcess> > pid = initialize();
     if (pid.isError()) {
-      cerr << "Failed to initialize: " << pid.error() << endl;
+      LOG(ERROR) << "Failed to initialize: " << pid.error();
       return 1;
     }
 
+    // Destroy does not return a future, hence we can not validate its
+    // results, thus we do a simple fire-and-forget post.
     process::post(pid.get(), received.get());
 
     return 0;
@@ -794,13 +794,13 @@ private:
 
 void usage(const char* argv0, const hashset<string>& commands)
 {
-  cerr << "Usage: " << os::basename(argv0).get() << " <command>"
+  cout << "Usage: " << os::basename(argv0).get() << " <command>"
        << endl
        << endl
        << "Available commands:" << endl;
 
   foreach (const string& command, commands) {
-    cerr << "    " << command << endl;
+    cout << "    " << command << endl;
   }
 }
 
@@ -815,7 +815,7 @@ int main(int argc, char** argv)
     << "Missing MESOS_WORK_DIRECTORY environment variable";
   string directory = os::getenv("MESOS_WORK_DIRECTORY");
 
-  cerr << "directory: " << directory << endl;
+  VLOG(1) << "MESOS_WORK_DIRECTORY: " << directory;
 
   hashmap<string, function<int(const string&)> > methods;
 
@@ -853,16 +853,16 @@ int main(int argc, char** argv)
   }
 
   if (!methods.contains(argv[1])) {
-    cerr << "'" << command << "' is not a valid command" << endl;
+    cout << "'" << command << "' is not a valid command" << endl;
     usage(argv[0], methods.keys());
     exit(1);
   }
 
-  cerr << "Invoking " << command << " command" << endl;
+  VLOG(1) << "Invoking " << command << " command";
 
   int ret = methods[command](directory);
 
-  cerr << command  << " has completed." << endl;
+  VLOG(1) << command  << " has completed." << endl;
 
   return ret;
 }
