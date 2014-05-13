@@ -96,6 +96,7 @@ Try<Nothing> send(const google::protobuf::Message& message)
   return ::protobuf::write(STDOUT_FILENO, message);
 }
 
+
 // Verify the future status of a protobuf reception and check the
 // container (payload) FutureResult.status. When both are ready,
 // return the container.
@@ -482,7 +483,7 @@ private:
     return containerizer;
   }
 
-  Option<Error> fork()
+  Option<Error> daemonize()
   {
     const string& workDirectory(thunkDirectory(directory));
 
@@ -527,8 +528,7 @@ private:
     return None();
   }
 
-  // Tries to get the PID of a running daemon. If no daemon is active,
-  // it spawns one and serializes its PID to the filesystem.
+  // Tries to get the PID of a running daemon.
   Try<PID<ThunkProcess> > initialize()
   {
     const string& workDirectory(thunkDirectory(directory));
@@ -661,8 +661,10 @@ public:
   int launch()
   {
     const string& workDirectory(thunkDirectory(directory));
+
+    // Checkis if a daemon is running, if not, it forks one.
     if (!os::isfile(path::join(workDirectory, "pid"))) {
-      fork();
+      daemonize();
     }
 
     Result<Launch> received = receive<Launch>();

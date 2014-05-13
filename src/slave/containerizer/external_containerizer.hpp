@@ -179,7 +179,7 @@ private:
   struct Container
   {
     Container(const Sandbox& sandbox)
-    : sandbox(sandbox), pid(None(), destroying(false)) {}
+    : sandbox(sandbox), pid(None()), destroying(false) {}
 
     // Keep sandbox information available for subsequent containerizer
     // invocations.

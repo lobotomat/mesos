@@ -612,36 +612,30 @@ void ExternalContainerizerProcess::__wait(
     return;
   }
 
-  if (!future.isReady()) {
-    actives[containerId]->termination.fail("Future not ready");
-    cleanup(containerId);
-    return;
-  }
-
-  Future<Option<int> > statusFuture = tuples::get<1>(future.get());
-  if (!statusFuture.isReady()) {
-    actives[containerId]->termination.fail("Future not ready");
-    cleanup(containerId);
-    return;
-  }
-
-  Option<int> status = statusFuture.get();
-  if (status.isNone()) {
-    actives[containerId]->termination.fail(
-        "External containerizer has no status available");
-    cleanup(containerId);
-    return ;
-  }
-
-  if (!WIFEXITED(status.get())) {
-    containerizer::Termination termination;
-    termination.set_killed(true);
-    termination.set_message(
-        string("External containerizer terminated by signal ") +
-        strsignal(WTERMSIG(status.get())));
-    actives[containerId]->termination.set(termination);
-    cleanup(containerId);
-    return;
+  // 'wait' should not return a failed future when it is getting
+  // 'destroy'ed, hence terminated by a signal (see unwait). We need
+  // to test for that and setup the appropriate Termination message
+  // accordingly.
+  if (actives[containerId]->destroying && future.isReady()) {
+    Future<Option<int> > statusFuture = tuples::get<1>(future.get());
+    if (statusFuture.isReady()) {
+      Option<int> status = statusFuture.get();
+      if (status.isSome()) {
+        containerizer::Termination termination;
+        // We do not enable 'killed' as the termination was not
+        // induced by the containerizer itself (e.g. OOM) but
+        // externally by the slave calling 'destroy'.
+        termination.set_killed(false);
+        termination.set_message("");
+        // The status may not be a plain exit-code but still have
+        // the termination signal bits set (use WIFEXITED and WTERMSIG
+        // to filter, if needed).
+        termination.set_status(status.get());
+        actives[containerId]->termination.set(termination);
+        cleanup(containerId);
+        return;
+      }
+    }
   }
 
   Try<containerizer::Termination> termination =
