@@ -506,10 +506,7 @@ private:
     }
     if (pid == 0) {
       cerr << "Exec: " << argv0 << endl;
-      string command = argv0 +
-          " setup >/tmp/test-containerizer-logs/daemon";
-      execl("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL);
-      //execl(argv0.c_str(), argv0.c_str(), "setup", NULL);
+      execl(argv0.c_str(), argv0.c_str(), "setup", NULL);
       cerr << "setup terminated" << endl;
       exit(0);
     }

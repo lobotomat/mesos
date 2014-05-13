@@ -556,7 +556,7 @@ Future<containerizer::Termination> ExternalContainerizerProcess::_wait(
 
   // We must not run multiple "wait" invocations on the same container.
   if (actives[containerId]->pid.isSome()) {
-    LOG(WARNING) << "Allready waiting for " << containerId;
+    LOG(WARNING) << "Already waiting for " << containerId;
     return actives[containerId]->termination.future();
   }
 
@@ -633,8 +633,6 @@ void ExternalContainerizerProcess::__wait(
     return ;
   }
 
-  // The status is a waitpid-result which has to be checked for SIGNAL
-  // based termination before masking out the exit-code.
   if (!WIFEXITED(status.get())) {
     containerizer::Termination termination;
     termination.set_killed(true);
@@ -642,14 +640,6 @@ void ExternalContainerizerProcess::__wait(
         string("External containerizer terminated by signal ") +
         strsignal(WTERMSIG(status.get())));
     actives[containerId]->termination.set(termination);
-    cleanup(containerId);
-    return;
-  }
-
-  if (WEXITSTATUS(status.get()) != 0) {
-    actives[containerId]->termination.fail(
-        "External containerizer failed (status: " +
-        stringify(WEXITSTATUS(status.get())) + ")");
     cleanup(containerId);
     return;
   }
@@ -859,6 +849,8 @@ void ExternalContainerizerProcess::_destroy(const ContainerID& containerId)
     LOG(ERROR) << "Container '" << containerId << "' not running";
     return;
   }
+
+  actives[containerId]->destroying = true;
 
   containerizer::Destroy destroy;
   destroy.mutable_container_id()->CopyFrom(containerId);

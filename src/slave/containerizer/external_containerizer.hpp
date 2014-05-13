@@ -178,7 +178,8 @@ private:
   // Information describing a running container.
   struct Container
   {
-    Container(const Sandbox& sandbox) : sandbox(sandbox), pid(None()) {}
+    Container(const Sandbox& sandbox)
+    : sandbox(sandbox), pid(None(), destroying(false)) {}
 
     // Keep sandbox information available for subsequent containerizer
     // invocations.
@@ -190,6 +191,10 @@ private:
     Option<pid_t> pid;
 
     process::Promise<containerizer::Termination> termination;
+
+    // We need to know that a signalled termination of a container
+    // was enforced by a 'destroy' (see unwait).
+    bool destroying;
 
     // As described in MESOS-1251, we need to make sure that events
     // that are triggered before launch has completed, are in fact
