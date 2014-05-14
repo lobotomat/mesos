@@ -254,13 +254,6 @@ Future<Nothing> ExternalContainerizerProcess::recover(
 {
   LOG(INFO) << "Recovering containerizer";
 
-  // We need a slave state for recovery as otherwise we will not be
-  // able to reconstruct the sandbox of an active container.
-  if (state.isNone()) {
-    LOG(WARNING) << "No slave state available to recover from";
-    return Nothing();
-  }
-
   // Ask the external containerizer to recover its internal state.
   Try<Subprocess> invoked = invoke("recover");
 
@@ -304,6 +297,10 @@ Future<Nothing> ExternalContainerizerProcess::__recover(
     const hashset<ContainerID>& containers)
 {
   VLOG(1) << "Recover continuation triggered";
+
+  // An orphaned container is known to the external containerizer but
+  // not to the slave, thus not recoverable but pending.
+  hashset<ContainerID> orphaned = containers;
 
   foreachvalue (const FrameworkState& framework, state.frameworks) {
     foreachvalue (const ExecutorState& executor, framework.executors) {
@@ -375,7 +372,18 @@ Future<Nothing> ExternalContainerizerProcess::__recover(
       // to be wrong, the containerizer::Termination delivered by the
       // subsequent wait invocation will tell us.
       actives[containerId]->launched.set(Nothing());
+
+      // Remove this container from the orphan collection as it is not
+      // orphaned.
+      orphaned.erase(containerId);
     }
+  }
+
+  // Enforce a 'destroy' on all orphaned containers.
+  foreach (const ContainerID& containerId, orphaned) {
+    LOG(INFO) << "Destroying container '" << containerId << "' as it "
+              << "is in an orphaned state.";
+    destroy(containerId);
   }
 
   return Nothing();
@@ -826,8 +834,8 @@ void ExternalContainerizerProcess::destroy(const ContainerID& containerId)
   VLOG(1) << "Destroy triggered on container '" << containerId << "'";
 
   if (!actives.contains(containerId)) {
-    LOG(ERROR) << "Container '" << containerId << "' not running";
-    return;
+    LOG(WARNING) << "Container '" << containerId << "' not running "
+                 << "according to the internal states";
   }
 
   // Defer destroy until launch is done.
@@ -844,19 +852,23 @@ void ExternalContainerizerProcess::_destroy(const ContainerID& containerId)
   VLOG(1) << "Destroy continuation on container '" << containerId << "'";
 
   if (!actives.contains(containerId)) {
-    LOG(ERROR) << "Container '" << containerId << "' not running";
-    return;
+    LOG(WARNING) << "Container '" << containerId << "' not running "
+                 << "according to the internal states";
+  } else {
+    actives[containerId]->destroying = true;
   }
-
-  actives[containerId]->destroying = true;
 
   containerizer::Destroy destroy;
   destroy.mutable_container_id()->CopyFrom(containerId);
 
-  Try<Subprocess> invoked = invoke(
-      "destroy",
-      destroy,
-      actives[containerId]->sandbox);
+  // We may receive calls on destroy for containers that are not known
+  // to the slave. We can not provide a sandbox environment for those.
+  Option<Sandbox> sandbox = None();
+  if (actives.contains(containerId)) {
+    sandbox = actives[containerId]->sandbox;
+  }
+
+  Try<Subprocess> invoked = invoke("destroy", destroy, sandbox);
 
   if (invoked.isError()) {
     LOG(ERROR) << "Destroy of container '" << containerId
@@ -881,8 +893,8 @@ void ExternalContainerizerProcess::__destroy(
   VLOG(1) << "Destroy callback triggered on container '" << containerId << "'";
 
   if (!actives.contains(containerId)) {
-    LOG(ERROR) << "Container '" << containerId.value() << "' not running";
-    return;
+    LOG(WARNING) << "Container '" << containerId << "' not running "
+                 << "according to the internal states";
   }
 
   Option<Error> error = validate(future);

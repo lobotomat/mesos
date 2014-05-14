@@ -251,6 +251,8 @@ private:
       }
     }
 
+    VLOG(2) << "Sending reply: " << r.DebugString();
+
     send(from, r);
   }
 
@@ -270,6 +272,8 @@ private:
 
     R r;
     r.mutable_future()->CopyFrom(message);
+
+    VLOG(2) << "Sending reply: " << r.DebugString();
 
     send(from, r);
   }
@@ -300,6 +304,8 @@ private:
     if (future.isReady()) {
       r.mutable_result()->CopyFrom(future.get());
     }
+
+    VLOG(2) << "Sending reply: " << r.DebugString();
 
     // Transmit the result back to the request process.
     send(from, r);
@@ -509,9 +515,9 @@ private:
       return ErrnoError("Failed to fork");;
     }
     if (pid == 0) {
-      VLOG(2) << "Exec: " << argv0;
 //      execl(argv0.c_str(), argv0.c_str(), "setup", NULL);
       string command = argv0 + " setup 2>/tmp/test-containerizer-logs/daemon_err";
+      VLOG(2) << "Exec: " << command;
       execl("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL);
       exit(0);
     }
