@@ -754,16 +754,14 @@ public:
   // Receive active containers.
   int containers()
   {
-    const string& workDirectory(thunkDirectory(directory));
     // We may be asked for containers even if we never received a
-    // launch on this container.
+    // launch on this slave.
+    const string& workDirectory(thunkDirectory(directory));
     if (!os::isfile(path::join(workDirectory, "pid"))) {
       LOG(WARNING) << "No daemon forked on MESOS_WORK_DIRECTORY='"
                    << workDirectory << "'";
-      LOG(WARNING) << "Returning empty result set";
-
+      // Answer the request with an empty containers message.
       Containers containers;
-      // Send the payload message via pipe.
       Try<Nothing> sent = send(containers);
       if (sent.isError()) {
         LOG(ERROR) << "Failed to send to pipe: " << sent.error();
