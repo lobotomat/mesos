@@ -516,7 +516,8 @@ private:
     }
     if (pid == 0) {
 //      execl(argv0.c_str(), argv0.c_str(), "setup", NULL);
-      string command = argv0 + " setup 2>/tmp/test-containerizer-logs/daemon_err";
+      string command = argv0 +
+          " setup 2>/tmp/test-containerizer-logs/daemon_err";
       VLOG(2) << "Exec: " << command;
       execl("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL);
       exit(0);
