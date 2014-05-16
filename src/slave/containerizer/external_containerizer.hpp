@@ -210,11 +210,11 @@ private:
   hashmap<ContainerID, process::Owned<Container> > actives;
 
   process::Future<Nothing> _recover(
-      const state::SlaveState& state,
+      const Option<state::SlaveState>& state,
       const process::Future<Option<int> >& future);
 
   process::Future<Nothing> __recover(
-      const state::SlaveState& state,
+      const Option<state::SlaveState>& state,
       const hashset<ContainerID>& containers);
 
   process::Future<Nothing> _launch(
