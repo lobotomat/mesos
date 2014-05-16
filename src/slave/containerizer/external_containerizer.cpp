@@ -857,6 +857,11 @@ void ExternalContainerizerProcess::_destroy(const ContainerID& containerId)
     LOG(WARNING) << "Container '" << containerId << "' not running "
                  << "according to the internal states";
   } else {
+    if (actives[containerId]->destroying) {
+      LOG(WARNING) << "Destroy on container '" << containerId << "' "
+                   << "has already been initiated.";
+      return;
+    }
     actives[containerId]->destroying = true;
   }
 
