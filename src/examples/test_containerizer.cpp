@@ -166,6 +166,7 @@ Try<T> validate(const Future<T>& future)
 }
 
 
+// Fork a daemon and invoke "setup" recursively.
 Option<Error> daemonize(const string& directory, const string& argv0)
 {
   VLOG(1) << "Forking daemon....";
@@ -184,6 +185,7 @@ Option<Error> daemonize(const string& directory, const string& argv0)
     return ErrnoError("Failed to create fifo");
   }
 
+  // Redirect stderr output into the daemon stderr file.
   string command = argv0 + " setup 2>" + daemonStderrPath(directory);
   VLOG(2) << "exec: " << command;
 
@@ -592,7 +594,7 @@ Try<PID<ThunkProcess> > thunkPid(const string& directory)
 
   PID<ThunkProcess> pid;
   try {
-    std::ifstream file(pidPath(directory));
+    std::fstream file(pidPath(directory), std::ios::in);
     file >> pid;
     file.close();
   } catch(std::exception e) {
@@ -602,7 +604,7 @@ Try<PID<ThunkProcess> > thunkPid(const string& directory)
   return pid;
 }
 
-
+// Run as a daemon expecting protobuf messages via libprocess.
 int setup(const string& directory)
 {
   Try<MesosContainerizerProcess*> containerizer =
@@ -926,6 +928,7 @@ int main(int argc, char** argv)
 
   int ret;
   if (command == "setup") {
+    // Spawns a daemon expecting protobuf messages via libprocess.
     ret = setup(directory);
   } else {
     // Launch implicitely forks a daemon if needed.
@@ -934,6 +937,7 @@ int main(int argc, char** argv)
         Option<Error> daemonized = daemonize(directory, argv[0]);
         if (daemonized.isSome()) {
           cerr << daemonized.get().message << endl;
+          exit(1);
         }
       }
     }
