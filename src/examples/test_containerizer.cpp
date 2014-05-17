@@ -141,9 +141,6 @@ public:
 private:
   void initialize()
   {
-    VLOG(2) << "Launching containerizer";
-    process::spawn(containerizer, true);
-
     VLOG(2) << "Installing handlers";
     install<LaunchRequest>(
         &ThunkProcess::launch,
@@ -185,6 +182,19 @@ private:
     VLOG(2) << "Synced with client invocation";
   }
 
+  void shutdown()
+  {
+    VLOG(1) << "Shutdown initiated";
+
+    // Join the MesosContainerizer process.
+    terminate(containerizer->self());
+
+    // Suicide.
+    terminate(this->self());
+
+    VLOG(1) << "Shutdown done, byebye!";
+  }
+
   void startGarbageCollecting()
   {
     if (garbageCollecting) {
@@ -218,14 +228,8 @@ private:
 
     VLOG(1) << "No more containers active, terminate!";
 
-    /*
-    // When no containers are active, shutdown containerizer.
-    terminate(containerizer->self());
-    process::wait(containerizer->self());
-
-    // Suicide.
-    terminate(this->self());
-    */
+    // When no containers are active, shutdown.
+    shutdown();
   }
 
   // Future<hashset<ContainerID> > overload.
@@ -485,7 +489,7 @@ private:
     MesosContainerizerProcess* containerizer =
       new MesosContainerizerProcess(
           flags,
-          true,
+          false,
           Owned<Launcher>(launcher.get()),
           isolators);
 
@@ -518,9 +522,9 @@ private:
 //      execl(argv0.c_str(), argv0.c_str(), "setup", NULL);
       string command = argv0 +
           " setup 2>/tmp/test-containerizer-logs/daemon_err";
-      VLOG(2) << "Exec: " << command;
+      VLOG(2) << "exec: " << command;
       execl("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL);
-      exit(0);
+      ABORT("exec failed");
     }
 
     // We are in the parent context.
@@ -625,6 +629,10 @@ public:
       return 1;
     }
 
+    // Spawn the containerizer process.
+    process::spawn(containerizer.get(), true);
+    LOG(INFO) << "Containerizer " << containerizer.get()->self() << " running";
+
     // Create a named pipe for syncing parent and child process.
     string fifoPath = path::join(workDirectory, "fifo");
 
@@ -633,8 +641,9 @@ public:
     process->fifoPath = fifoPath;
 
     // Serialize the PID to the filesystem.
+    string pidPath = path::join(workDirectory, "pid");
     try {
-      std::fstream file(path::join(workDirectory, "pid"), std::ios::out);
+      std::fstream file(pidPath, std::ios::out);
       file << process->self();
       file.close();
     } catch(std::exception e) {
@@ -644,14 +653,23 @@ public:
 
     // Run until we get terminated via teardown.
     process::spawn(process, true);
-    LOG(INFO) << "Daemon is running";
+    LOG(INFO) << "Daemon " << process->self() << " running";
+
+    process::wait(containerizer.get());
+    LOG(INFO) << "Containerizer terminated";
     process::wait(process);
     LOG(INFO) << "Daemon terminated";
 
-    Try<Nothing> rmdir = os::rmdir(workDirectory);
-    if (rmdir.isError()) {
-      LOG(ERROR) << "Failed to remove '" << workDirectory << "': "
-                 << rmdir.error();
+    Try<Nothing> rmFifo = os::rm(fifoPath);
+    if (rmFifo.isError()) {
+      LOG(ERROR) << "Failed to remove '" << fifoPath << "': "
+                 << rmFifo.error();
+      return 1;
+    }
+    Try<Nothing> rmPid = os::rm(pidPath);
+    if (rmPid.isError()) {
+      LOG(ERROR) << "Failed to remove '" << pidPath << "': "
+                 << rmPid.error();
       return 1;
     }
 
@@ -884,7 +902,7 @@ int main(int argc, char** argv)
 
   int ret = methods[command](directory);
 
-  VLOG(1) << command  << " has completed." << endl;
+  VLOG(1) << command  << " has completed with status: " << ret << endl;
 
   return ret;
 }
