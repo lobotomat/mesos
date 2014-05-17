@@ -31,6 +31,9 @@
 // 'wait' is expected to block until the task command/executor has
 // terminated.
 
+#include <sys/resource.h>
+
+
 #include <stdlib.h>     // exit
 
 #include <iostream>
@@ -135,12 +138,16 @@ namespace slave {
 class ThunkProcess : public ProtobufProcess<ThunkProcess>
 {
 public:
-  ThunkProcess(MesosContainerizerProcess* containerizer)
+  explicit ThunkProcess(MesosContainerizerProcess* containerizer)
   : containerizer(containerizer), garbageCollecting(false) {}
+
+  virtual ~ThunkProcess() {}
 
 private:
   void initialize()
   {
+    link(containerizer->self());
+
     VLOG(2) << "Installing handlers";
     install<LaunchRequest>(
         &ThunkProcess::launch,
@@ -453,6 +460,8 @@ public:
   TestContainerizer(const string& argv0, const string& directory)
   : argv0(argv0), directory(directory) {}
 
+  virtual ~TestContainerizer() {}
+
 private:
   // Prepare the MesosContainerizerProcess to use posix-isolation,
   Try<MesosContainerizerProcess*> createContainerizer(
@@ -486,6 +495,11 @@ private:
           launcher.error());
     }
 
+    // Contstruct the MesosContainerizerProcess.
+    // We need to use the local=false argument to enable the mesos
+    // containerizer redirecting stdout and stderr towards the log-
+    // files. If that is not done, the pipe communication of the
+    // ExternalContainerizer is getting garbled.
     MesosContainerizerProcess* containerizer =
       new MesosContainerizerProcess(
           flags,
@@ -513,6 +527,10 @@ private:
       return ErrnoError("Failed to create fifo");
     }
 
+    string command = argv0 +
+        " setup 2>/tmp/test-containerizer-logs/daemon_err";
+    VLOG(2) << "exec: " << command;
+
     // Spawn the process and wait for it in a child process.
     int pid = ::fork();
     if (pid == -1) {
@@ -520,9 +538,6 @@ private:
     }
     if (pid == 0) {
 //      execl(argv0.c_str(), argv0.c_str(), "setup", NULL);
-      string command = argv0 +
-          " setup 2>/tmp/test-containerizer-logs/daemon_err";
-      VLOG(2) << "exec: " << command;
       execl("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL);
       ABORT("exec failed");
     }
@@ -630,14 +645,15 @@ public:
     }
 
     // Spawn the containerizer process.
-    process::spawn(containerizer.get(), true);
-    LOG(INFO) << "Containerizer " << containerizer.get()->self() << " running";
+    MesosContainerizerProcess* container = containerizer.get();
+    process::spawn(container, true);
+    LOG(INFO) << "Containerizer " << container->self() << " running";
 
     // Create a named pipe for syncing parent and child process.
     string fifoPath = path::join(workDirectory, "fifo");
 
     // Create our ThunkProcess, wrapping the containerizer process.
-    ThunkProcess* process = new ThunkProcess(containerizer.get());
+    ThunkProcess* process = new ThunkProcess(container);
     process->fifoPath = fifoPath;
 
     // Serialize the PID to the filesystem.
@@ -655,8 +671,6 @@ public:
     process::spawn(process, true);
     LOG(INFO) << "Daemon " << process->self() << " running";
 
-    process::wait(containerizer.get());
-    LOG(INFO) << "Containerizer terminated";
     process::wait(process);
     LOG(INFO) << "Daemon terminated";
 
@@ -672,6 +686,7 @@ public:
                  << rmPid.error();
       return 1;
     }
+    os::rmdir(workDirectory);
 
     return 0;
   }
@@ -844,12 +859,23 @@ void usage(const char* argv0, const hashset<string>& commands)
   }
 }
 
+static bool enableCoreDumps(void)
+{
+    struct rlimit limit;
+
+    limit.rlim_cur = RLIM_INFINITY;
+    limit.rlim_max = RLIM_INFINITY;
+
+    return setrlimit(RLIMIT_CORE, &limit) == 0;
+}
 
 int main(int argc, char** argv)
 {
   using namespace mesos;
   using namespace internal;
   using namespace slave;
+
+  enableCoreDumps();
 
   CHECK(os::hasenv("MESOS_WORK_DIRECTORY"))
     << "Missing MESOS_WORK_DIRECTORY environment variable";
@@ -892,7 +918,7 @@ int main(int argc, char** argv)
     exit(0);
   }
 
-  if (!methods.contains(argv[1])) {
+  if (!methods.contains(command)) {
     cout << "'" << command << "' is not a valid command" << endl;
     usage(argv[0], methods.keys());
     exit(1);
