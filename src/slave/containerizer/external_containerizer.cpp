@@ -838,6 +838,8 @@ void ExternalContainerizerProcess::destroy(const ContainerID& containerId)
   if (!actives.contains(containerId)) {
     LOG(WARNING) << "Container '" << containerId << "' not running "
                  << "according to the internal states";
+    _destroy(containerId);
+    return;
   }
 
   // Defer destroy until launch is done.
