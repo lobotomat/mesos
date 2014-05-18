@@ -568,8 +568,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   AWAIT_READY(_recover);
 
   Clock::pause();
-//  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
-//  Clock::settle(); // Wait for slave to schedule reregister timeout.
+  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
+  Clock::settle(); // Wait for slave to schedule reregister timeout.
 
   // Now advance time until the reaper reaps the executor.
   while (status.isPending()) {
@@ -590,6 +590,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverUnregisteredExecutor)
   AWAIT_READY(offers2);
   ASSERT_EQ(Resources(offers1.get()[0].resources()),
             Resources(offers2.get()[0].resources()));
+
+  Clock::resume();
 
   driver.stop();
   driver.join();
@@ -709,10 +711,10 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   ASSERT_EQ(Resources(offers1.get()[0].resources()),
             Resources(offers2.get()[0].resources()));
 
+  Clock::resume();
+
   driver.stop();
   driver.join();
-
-  Clock::resume();
 
   this->Shutdown();
   delete containerizer2.get();
@@ -1220,6 +1222,12 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingSlave)
   Try<PID<Slave> > slave = this->StartSlave(containerizer.get(), flags);
   ASSERT_SOME(slave);
 
+  // TODO(tillt): This seems wrong!!!!!
+  while (registerSlaveMessage.isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
   AWAIT_READY(registerSlaveMessage);
 
   MockScheduler sched;
@@ -1245,6 +1253,8 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingSlave)
   // to ensure that no offers are received by the scheduler.
   AWAIT_READY(registered);
   Clock::settle();
+
+  Clock::resume();
 
   driver.stop();
   driver.join();
@@ -1321,13 +1331,17 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
-  Clock::pause();
-
+/*
+  while (_recover.isPending()) {
+    Clock::settle();
+    Clock::advance(Seconds(1));
+  }
+*/
   AWAIT_READY(_recover);
 
-  Clock::settle(); // Wait for slave to schedule reregister timeout.
-
-  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
+ // Clock::pause();
+//  Clock::settle(); // Wait for slave to schedule reregister timeout.
+ // Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
 
   // Wait for the slave to re-register.
   AWAIT_READY(reregisterSlave);
@@ -1349,19 +1363,20 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
   AWAIT_READY(status);
   ASSERT_EQ(TASK_KILLED, status.get().state());
 
+/*
   // Advance the clock until the allocator allocates
   // the recovered resources.
   while (offers2.isPending()) {
     Clock::advance(Seconds(1));
     Clock::settle();
   }
-
+*/
   // Make sure all slave resources are reoffered.
   AWAIT_READY(offers2);
   ASSERT_EQ(Resources(offers1.get()[0].resources()),
             Resources(offers2.get()[0].resources()));
 
-  Clock::resume();
+  //Clock::resume();
 
   driver.stop();
   driver.join();
@@ -3079,6 +3094,8 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
   // Scheduler should receive the TASK_FAILED update.
   AWAIT_READY(status);
   ASSERT_EQ(TASK_FAILED, status.get().state());
+
+  Clock::resume();
 
   driver.stop();
   driver.join();
