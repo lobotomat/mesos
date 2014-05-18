@@ -539,19 +539,16 @@ private:
   {
     const string& workDirectory(thunkDirectory(directory));
 
-    // Create test-comtainerizer work directory.
-    CHECK_SOME(os::mkdir(workDirectory))
-      << "Failed to create test-containerizer work directory '"
-      << workDirectory << "'";
-
     // Create a named pipe for syncing parent and child process.
     string fifoPath = path::join(workDirectory, "fifo");
     if (mkfifo(fifoPath.c_str(), 0666) < 0) {
       return ErrnoError("Failed to create fifo");
     }
 
+    cerr << "forking daemon for " << workDirectory << endl;
+
     string command = argv0 +
-        " setup 2>/tmp/test-containerizer-logs/daemon_err";
+        " setup 2>>/tmp/test-containerizer-logs/daemon_err";
 
     // Spawn the process and wait for it in a child process.
     int pid = ::fork();
@@ -702,16 +699,60 @@ public:
   {
     const string& workDirectory(thunkDirectory(directory));
 
-    // Checks if a daemon is running, if not, it forks one.
-    if (!os::isfile(path::join(workDirectory, "pid"))) {
-      daemonize();
-    }
-
     Result<Launch> received = receive<Launch>();
     if (received.isError()) {
       cerr << "Failed to receive from pipe: " << received.error() << endl;
       return 1;
     }
+
+    string id = received.get().has_task_info()
+                ? "task " +
+                    received.get().task_info().task_id().value()
+                : "executor " +
+                    received.get().executor_info().executor_id().value();
+
+
+    // Create test-comtainerizer work directory.
+    CHECK_SOME(os::mkdir(workDirectory))
+      << "Failed to create test-containerizer work directory '"
+      << workDirectory << "'";
+
+    // We need a mutex at this point to prevent double daemonizing
+    // ...................
+
+    string lockPath = path::join(workDirectory, "pid_lock");
+
+    int fd;
+    while(true) {
+      fd = open(lockPath.c_str(), O_WRONLY | O_CREAT | O_EXLOCK);
+      if (fd != -1 || (fd == -1 && (errno != EINTR && errno != EACCES))) {
+        break;
+      }
+      cerr << "waiting for lock for " << id << endl;
+      os::sleep(Milliseconds(100));
+    }
+    if (fd == -1) {
+      cerr << "failed to access lock file" << strerror(errno) << endl;
+      return 1;
+    }
+    cerr << "lock acquired for " << id << endl;
+
+    // Checks if a daemon is running, if not, it forks one.
+    if (!os::isfile(path::join(workDirectory, "pid"))) {
+
+      cerr << "daemonizing for " << id << endl;
+      Option<Error> daemonized = daemonize();
+      if (daemonized.isSome()) {
+        cerr << "daemonizing failed: " << daemonized.get().message << endl;
+        return 1;
+      }
+    }
+    close(fd);
+    os::rm(lockPath);
+
+    // ...................
+    // We need a mutex at this point to prevent double daemonizing
+
 
     // We need to wrap the Launch message as "install" only supports
     // up to 6 parameters whereas the Launch message has 8 members.
@@ -720,9 +761,11 @@ public:
 
     Try<LaunchResult> result = thunk<LaunchRequest, LaunchResult>(wrapped);
     if (result.isError()) {
-      cerr << "Launch thunking failed: " << result.error() << endl;
+      cerr << "Launch thunking for "<< id << " failed: " << result.error()
+           << endl;
       return 1;
     }
+    cerr << "Launch thunking for " << id << " done." << endl;
     return 0;
   }
 
