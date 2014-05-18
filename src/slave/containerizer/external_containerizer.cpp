@@ -381,13 +381,40 @@ Future<Nothing> ExternalContainerizerProcess::__recover(
     }
   }
 
+  // Wait for the orphans.
+  list<Future<containerizer::Termination> > futures;
+
   // Enforce a 'destroy' on all orphaned containers.
   foreach (const ContainerID& containerId, orphaned) {
     LOG(INFO) << "Destroying container '" << containerId << "' as it "
               << "is in an orphaned state.";
+    // Collect this orphaned container so we can wait on it getting
+    // destroyed.
+    actives.put(containerId, Owned<Container>(new Container(None())));
+
+    // Assume that this container had been launched, if this proves
+    // to be wrong, the containerizer::Termination delivered by the
+    // subsequent wait invocation will tell us.
+    actives[containerId]->launched.set(Nothing());
+
+    futures.push_back(_wait(containerId));
+
     destroy(containerId);
   }
 
+  if (!orphaned.empty()) {
+    // If all orphans have terminated then continue.
+    return collect(futures)
+      .then(defer(
+          PID<ExternalContainerizerProcess>(this),
+          &ExternalContainerizerProcess::___recover));
+  }
+  return Nothing();
+}
+
+
+Future<Nothing> ExternalContainerizerProcess::___recover()
+{
   return Nothing();
 }
 
@@ -836,9 +863,7 @@ void ExternalContainerizerProcess::destroy(const ContainerID& containerId)
   VLOG(1) << "Destroy triggered on container '" << containerId << "'";
 
   if (!actives.contains(containerId)) {
-    LOG(WARNING) << "Container '" << containerId << "' not running "
-                 << "according to the internal states";
-    _destroy(containerId);
+    LOG(ERROR) << "Container '" << containerId << "' not running";
     return;
   }
 
@@ -856,28 +881,24 @@ void ExternalContainerizerProcess::_destroy(const ContainerID& containerId)
   VLOG(1) << "Destroy continuation on container '" << containerId << "'";
 
   if (!actives.contains(containerId)) {
-    LOG(WARNING) << "Container '" << containerId << "' not running "
-                 << "according to the internal states";
-  } else {
-    if (actives[containerId]->destroying) {
-      LOG(WARNING) << "Destroy on container '" << containerId << "' "
-                   << "has already been initiated.";
-      return;
-    }
-    actives[containerId]->destroying = true;
+    LOG(ERROR) << "Container '" << containerId << "' not running ";
+    return;
   }
+
+  if (actives[containerId]->destroying) {
+    LOG(WARNING) << "Destroy on container '" << containerId << "' "
+                 << "has already been initiated.";
+    return;
+  }
+  actives[containerId]->destroying = true;
 
   containerizer::Destroy destroy;
   destroy.mutable_container_id()->CopyFrom(containerId);
 
-  // We may receive calls on destroy for containers that are not known
-  // to the slave. We can not provide a sandbox environment for those.
-  Option<Sandbox> sandbox = None();
-  if (actives.contains(containerId)) {
-    sandbox = actives[containerId]->sandbox;
-  }
-
-  Try<Subprocess> invoked = invoke("destroy", destroy, sandbox);
+  Try<Subprocess> invoked = invoke(
+      "destroy",
+      destroy,
+      actives[containerId]->sandbox);
 
   if (invoked.isError()) {
     LOG(ERROR) << "Destroy of container '" << containerId
@@ -902,8 +923,8 @@ void ExternalContainerizerProcess::__destroy(
   VLOG(1) << "Destroy callback triggered on container '" << containerId << "'";
 
   if (!actives.contains(containerId)) {
-    LOG(WARNING) << "Container '" << containerId << "' not running "
-                 << "according to the internal states";
+    LOG(ERROR) << "Container '" << containerId << "' not running ";
+    return;
   }
 
   Option<Error> error = validate(future);
@@ -961,7 +982,7 @@ Future<hashset<ContainerID> > ExternalContainerizerProcess::_containers(
   hashset<ContainerID> result;
   foreach (const ContainerID& containerId, containers.get().containers()) {
     result.insert(containerId);
-    LOG(INFO) << "container " << containerId << "is active according to ECP.";
+    LOG(INFO) << "container " << containerId << " is active according to ECP.";
   }
 
   return result;

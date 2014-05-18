@@ -178,12 +178,12 @@ private:
   // Information describing a running container.
   struct Container
   {
-    Container(const Sandbox& sandbox)
+    Container(const Option<Sandbox>& sandbox)
     : sandbox(sandbox), pid(None()), destroying(false) {}
 
     // Keep sandbox information available for subsequent containerizer
     // invocations.
-    Sandbox sandbox;
+    Option<Sandbox> sandbox;
 
     // External containerizer pid as per wait-invocation.
     // Wait should block on the external containerizer side, hence we
@@ -195,6 +195,8 @@ private:
     // We need to know that a signalled termination of a container
     // was enforced by a 'destroy' (see unwait).
     bool destroying;
+
+    process::Promise<ResourceStatistics> statistics;
 
     // As described in MESOS-1251, we need to make sure that events
     // that are triggered before launch has completed, are in fact
@@ -216,6 +218,8 @@ private:
   process::Future<Nothing> __recover(
       const Option<state::SlaveState>& state,
       const hashset<ContainerID>& containers);
+
+  process::Future<Nothing> ___recover();
 
   process::Future<Nothing> _launch(
       const ContainerID& containerId,
