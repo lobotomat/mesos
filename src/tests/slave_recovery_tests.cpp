@@ -2200,10 +2200,20 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 
   Clock::pause();
 
+  while (_recover.isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+
   AWAIT_READY(_recover);
 
   // Wait for the slave to re-register.
   AWAIT_READY(reregisterSlave);
+
+  while (status.isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
 
   // Wait for TASK_LOST update.
   AWAIT_READY(status);
