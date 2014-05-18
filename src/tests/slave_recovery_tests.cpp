@@ -136,7 +136,7 @@ typedef ::testing::Types<
 
 TYPED_TEST_CASE(SlaveRecoveryTest, ContainerizerTypes);
 
-// Enable checkpointing on the slave and ensure recovery works.
+// Enable checkpointing on theq slave and ensure recovery works.
 TYPED_TEST(SlaveRecoveryTest, RecoverSlaveState)
 {
   Try<PID<Master> > master = this->StartMaster();
@@ -682,12 +682,10 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
   slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
-  Clock::pause();
-
   AWAIT_READY(_recover);
 
+  Clock::pause();
   Clock::settle(); // Wait for slave to schedule reregister timeout.
-
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
 
   // Now advance time until the reaper reaps the executor.
@@ -698,6 +696,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 
   // Scheduler should receive the TASK_FAILED update.
   AWAIT_READY(status);
+
   ASSERT_EQ(TASK_FAILED, status.get().state());
 
   while (offers2.isPending()) {
@@ -712,6 +711,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTerminatedExecutor)
 
   driver.stop();
   driver.join();
+
+  Clock::resume();
 
   this->Shutdown();
   delete containerizer2.get();
