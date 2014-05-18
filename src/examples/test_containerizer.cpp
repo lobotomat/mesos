@@ -175,6 +175,14 @@ public:
 protected:
   virtual void initialize()
   {
+    try {
+      std::fstream file(pidPath, std::ios::out);
+      file << self();
+      file.close();
+    } catch(std::exception e) {
+      cerr << "Failed writing PID: " << e.what() << endl;
+    }
+
     install<LaunchRequest>(
         &ThunkProcess::launch,
         &LaunchRequest::message);
@@ -209,6 +217,21 @@ protected:
     while (::write(pipe, &sync, sizeof(sync)) == -1 &&
            errno == EINTR);
     close(pipe);
+  }
+
+  virtual void finalize()
+  {
+    Try<Nothing> rmPid = os::rm(pidPath);
+    if (rmPid.isError()) {
+      cerr << "Failed to remove '" << pidPath << "': " << rmPid.error()
+           << endl;
+    }
+
+    Try<Nothing> rmFifo = os::rm(fifoPath);
+    if (rmFifo.isError()) {
+      cerr << "Failed to remove '" << fifoPath << "': " << rmFifo.error()
+           << endl;
+    }
   }
 
 private:
@@ -445,6 +468,7 @@ private:
 
 public:
   string fifoPath;
+  string pidPath;
   bool garbageCollecting;
 };
 
@@ -642,41 +666,23 @@ public:
     MesosContainerizerProcess* container = containerizer.get();
     process::spawn(container, true);
 
+    // TODO(tillt): move this into the ThunkProcess and hand over
+    // the workdir only.
+
     // Create a named pipe for syncing parent and child process.
     string fifoPath = path::join(workDirectory, "fifo");
+    // Serialize the PID to the filesystem.
+    string pidPath = path::join(workDirectory, "pid");
 
     // Create our ThunkProcess, wrapping the containerizer process.
     ThunkProcess* process = new ThunkProcess(container);
     process->fifoPath = fifoPath;
-
-    // Serialize the PID to the filesystem.
-    string pidPath = path::join(workDirectory, "pid");
-    try {
-      std::fstream file(pidPath, std::ios::out);
-      file << process->self();
-      file.close();
-    } catch(std::exception e) {
-      cerr << "Failed writing PID: " << e.what() << endl;
-      return 1;
-    }
+    process->pidPath = pidPath;
 
     // Run until we get terminated via teardown.
     process::spawn(process, true);
-
     process::wait(process);
 
-    Try<Nothing> rmFifo = os::rm(fifoPath);
-    if (rmFifo.isError()) {
-      cerr << "Failed to remove '" << fifoPath << "': " << rmFifo.error()
-           << endl;
-      return 1;
-    }
-    Try<Nothing> rmPid = os::rm(pidPath);
-    if (rmPid.isError()) {
-      cerr << "Failed to remove '" << pidPath << "': " << rmPid.error()
-           << endl;
-      return 1;
-    }
     os::rmdir(workDirectory);
 
     return 0;
@@ -791,7 +797,6 @@ public:
       }
       return 0;
     }
-
     ContainersRequest request;
 
     Option<Error> result =
