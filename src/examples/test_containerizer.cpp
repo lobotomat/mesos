@@ -32,7 +32,6 @@
 // The resulting communication scheme is as follows:
 // ExternalContainerizer-trigger-thunk-MesosContainerizerProcess
 
-#include <fcntl.h>
 #include <sys/file.h>
 #include <stdlib.h>
 
@@ -704,7 +703,7 @@ public:
 
     // We need a file lock at this point to prevent double daemonizing
     // attempts due to concurrent launch invocations.
-    int lock = open(
+    int lock = ::open(
         lockPath(directory).c_str(),
         O_WRONLY | O_CREAT,
         S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
@@ -714,7 +713,7 @@ public:
     }
 
     cerr << "attempting to acquire lock" << endl;
-    if (flock(lock, LOCK_EX) != 0) {
+    if (::flock(lock, LOCK_EX) != 0) {
       cerr << "Failed to lock file " << strerror(errno) << endl;
       return 1;
     }
@@ -725,7 +724,7 @@ public:
       Option<Error> daemonized = daemonize();
       if (daemonized.isSome()) {
         cerr << "Daemonizing failed: " << daemonized.get().message << endl;
-        if (flock(lock, LOCK_UN) != 0) {
+        if (::flock(lock, LOCK_UN) != 0) {
           cerr << "Could not unlock lock file" << strerror(errno) << endl;
           return 1;
         }
@@ -734,11 +733,11 @@ public:
       }
     }
 
-    if (flock(lock, LOCK_UN) != 0) {
+    if (::flock(lock, LOCK_UN) != 0) {
       cerr << "Could not unlock lock file" << strerror(errno) << endl;
       return 1;
     }
-    close(lock);
+    ::close(lock);
 
     // We need to wrap the Launch message as "install" only supports
     // up to 6 parameters whereas the Launch message has 8 members.
