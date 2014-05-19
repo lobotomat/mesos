@@ -24,7 +24,7 @@
 // The daemon is controlled by invocations of this test-containerizer
 // as a trigger executable.
 //
-// Both processes are spawned implicitely whenever "launch" is invoked
+// Both processes are spawned implicitly whenever "launch" is invoked
 // on a MESOS_WORK_DIRECTORY that does not have a daemon running yet.
 // The daemon terminates itself whenever there are no more active
 // containers according to the MesosContainerizerProcess.
@@ -83,45 +83,8 @@ using std::vector;
 
 using lambda::function;
 
-// Receive a record-io protobuf message via stdin.
-template<typename T>
-Result<T> receive()
-{
-  return ::protobuf::read<T>(STDIN_FILENO, false, false);
-}
 
-
-// Send a record-io protobuf message via stdout.
-Try<Nothing> send(const google::protobuf::Message& message)
-{
-  return ::protobuf::write(STDOUT_FILENO, message);
-}
-
-
-// Verify the future status of a protobuf reception and check the
-// container (payload) FutureResult.status. When both are ready,
-// return the container.
-template<typename T>
-Try<T> validate(const Future<T>& future)
-{
-  if (!future.isReady()) {
-    return Error("Outer result future " +
-        (future.isFailed() ? "failed: " + future.failure()
-                           : "got discarded"));
-  }
-
-  T result = future.get();
-  if (result.future().status() != examples::FUTURE_READY) {
-    return Error("Inner result future (protobuffed) " +
-        (result.future().status() ==  examples::FUTURE_FAILED
-            ? "failed: " + future.failure()
-            : "got discarded"));
-  }
-
-  return result;
-}
-
-
+// Slave configuration specific (MESOS_WORK_DIRECTORY) path getters.
 string thunkDirectory(const string& directory)
 {
   return path::join(directory, "test_containerizer");
@@ -152,8 +115,49 @@ string lockPath(const string& directory)
 }
 
 
+// Receive a record-io protobuf message via stdin.
+template<typename T>
+Result<T> receive()
+{
+  return ::protobuf::read<T>(STDIN_FILENO, false, false);
+}
+
+
+// Send a record-io protobuf message via stdout.
+Try<Nothing> send(const google::protobuf::Message& message)
+{
+  return ::protobuf::write(STDOUT_FILENO, message);
+}
+
+
+// Verify the future status of a protobuf reception and check the
+// container (payload) FutureResult.status. If both are ready,
+// return the container.
+template<typename T>
+Try<T> validate(const Future<T>& future)
+{
+  if (!future.isReady()) {
+    return Error("Outer result future " +
+        (future.isFailed() ? "failed: " + future.failure()
+                           : "got discarded"));
+  }
+
+  T result = future.get();
+  if (result.future().status() != examples::FUTURE_READY) {
+    return Error("Inner result future (protobuffed) " +
+        (result.future().status() ==  examples::FUTURE_FAILED
+            ? "failed: " + future.failure()
+            : "got discarded"));
+  }
+
+  return result;
+}
+
+
 // Allows you to describe request/response protocols and then use
-// those for sending requests and getting back responses.
+// those for sending requests and getting back responses. This variant
+// of Protocol is working synchronously by blocking until the
+// communication process has terminated.
 template <typename Req, typename Res>
 struct SyncProtocol
 {
@@ -254,15 +258,15 @@ protected:
   }
 
 private:
+  // Terminates both processes.
   void shutdown()
   {
-    // Join the MesosContainerizer process.
     terminate(containerizer->self());
-
-    // Suicide.
     terminate(this->self());
   }
 
+  // Initiates a periodic check for active containers on the
+  // MesosContainerizerProcess.
   void startGarbageCollecting()
   {
     if (garbageCollecting) {
@@ -272,6 +276,7 @@ private:
     garbageCollect();
   }
 
+  // Asks the MesosContainerizerProcess for active containers.
   void garbageCollect()
   {
     dispatch(
@@ -283,6 +288,8 @@ private:
           lambda::_1));
   }
 
+  // Checks the containers result and if none are left, initiates a
+  // termination of both processes.
   void _garbageCollect(const hashset<ContainerID>& containers)
   {
     if(containers.empty()) {
@@ -385,7 +392,6 @@ private:
       const PID<Slave>&,
       bool) = &MesosContainerizerProcess::launch;
 
-    // TODO(tillt): This smells fishy - validate its function!
     PID<Slave> slave;
     std::stringstream stream;
     stream << message.slave_pid();
@@ -468,7 +474,7 @@ private:
       const vector<Resource>& resourceVector)
   {
     Resources resources;
-    foreach(const Resource& resource, resourceVector) {
+    foreach (const Resource& resource, resourceVector) {
       resources += resource;
     }
     dispatch(
@@ -484,18 +490,15 @@ private:
   }
 
   MesosContainerizerProcess* containerizer;
-
+  // Slave configuration specific work directory.
   string directory;
+  // Garbage collection activity indicator.
   bool garbageCollecting;
 };
 
 
-// Allows spawning a daemon via "setup" and shutting it down again
-// via "teardown".
-// Also poses as the external interface of the ExternalContainerizer
-// program via its standard API as defined within
-// ExternalContainerizer.hpp.
-// TOOD(tillt): Consider refactoring this into two classes.
+// External containerizer program (ECP) for the ExternalContainerizer
+// via its standard API as defined within ExternalContainerizer.hpp.
 class TestContainerizer
 {
 public:
@@ -512,7 +515,6 @@ private:
     Flags flags;
     flags.work_dir = workDir;
     flags.launcher_dir = path::join(BUILD_DIR, "src");
-    //flags.launcher_dir = path::join(tests::flags.build_dir, "src");
 
     // Create a MesosContainerizerProcess using isolators and a launcher.
     vector<Owned<Isolator> > isolators;
@@ -537,7 +539,7 @@ private:
           launcher.error());
     }
 
-    // Contstruct the MesosContainerizerProcess.
+    // Construct the MesosContainerizerProcess.
     // We need to use the local=false argument to enable the mesos
     // containerizer redirecting stdout and stderr towards the log-
     // files. If that is not done, the pipe communication of the
@@ -663,7 +665,7 @@ public:
     // Create our ThunkProcess, wrapping the containerizer process.
     ThunkProcess* process = new ThunkProcess(container, directory);
 
-    // Run until we get terminated via teardown.
+    // Run until we get terminated via garbage collection.
     process::spawn(process, true);
     process::wait(process);
 
@@ -687,7 +689,9 @@ public:
   }
 
   // Start a containerized executor. Expects to receive a Launch
-  // protobuf via stdin.
+  // protobuf via stdin. This does implicitly fork-exec the daemon
+  // if none is active for the given slave instance
+  // (MESOS_WORK_DIRECTORY).
   int launch()
   {
     Result<Launch> received = receive<Launch>();
@@ -702,7 +706,7 @@ public:
       << thunkDirectory(directory) << "'";
 
     // We need a file lock at this point to prevent double daemonizing
-    // attempts.
+    // attempts due to concurrent launch invocations.
     int fd;
     while (true) {
       fd = open(lockPath(directory).c_str(), O_WRONLY | O_CREAT | O_EXLOCK);
@@ -781,7 +785,7 @@ public:
   }
 
   // Gather resource usage statistics for the containerized executor.
-  // Delivers an ResourceStatistics protobut via stdout when
+  // Delivers an ResourceStatistics protobuf via stdout when
   // successful.
   int usage()
   {
@@ -877,10 +881,11 @@ int main(int argc, char** argv)
     << "Missing MESOS_WORK_DIRECTORY environment variable";
   string directory = os::getenv("MESOS_WORK_DIRECTORY");
 
-  hashmap<string, function<int(const string&)> > methods;
-
   TestContainerizer containerizer(argv[0], directory);
 
+  hashmap<string, function<int(const string&)> > methods;
+
+  // Daemon setup. Invoked by the test-containerizer itself only.
   methods["setup"] = lambda::bind(
       &TestContainerizer::setup, &containerizer);
 
