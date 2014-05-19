@@ -32,6 +32,7 @@
 // The resulting communication scheme is as follows:
 // ExternalContainerizer-trigger-thunk-MesosContainerizerProcess
 
+#include <fcntl.h>
 #include <stdlib.h>
 
 #include <iostream>
@@ -609,8 +610,8 @@ private:
     return pid;
   }
 
-  // Transmit a message via socket to the MesosContainerizer, block
-  // until a result message is received.
+  // Transmit a message via socket to the MesosContainerizerProcess,
+  // block until a result message is received.
   template <typename T, typename R>
   Try<R> thunk(const T& t)
   {
@@ -625,8 +626,9 @@ private:
     return protocol(pid.get(), t);
   }
 
-  // Transmit a message via socket to the MesosContainerizer, block
-  // until a result message is received and pipe it out.
+  // Transmit a message via socket to the MesosContainerizerProcess,
+  // block until a result message is received and pipe it out, back
+  // to the ExternalContainerizer.
   template <typename T, typename R>
   Option<Error> thunkOut(const T& t)
   {
