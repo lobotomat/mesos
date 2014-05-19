@@ -381,40 +381,45 @@ Future<Nothing> ExternalContainerizerProcess::__recover(
     }
   }
 
-  // Wait for the orphans.
+  // Done when we got no orphans to take care of.
+  if (orphaned.empty()) {
+    VLOG(1) << "Recovery done";
+    return Nothing();
+  }
+
   list<Future<containerizer::Termination> > futures;
 
   // Enforce a 'destroy' on all orphaned containers.
   foreach (const ContainerID& containerId, orphaned) {
     LOG(INFO) << "Destroying container '" << containerId << "' as it "
               << "is in an orphaned state.";
-    // Collect this orphaned container so we can wait on it getting
-    // destroyed.
+    // For being able to wait on an orphan, we need to create an
+    // internal Container state - we just can not have a sandbox for
+    // it.
     actives.put(containerId, Owned<Container>(new Container(None())));
-
-    // Assume that this container had been launched, if this proves
-    // to be wrong, the containerizer::Termination delivered by the
-    // subsequent wait invocation will tell us.
     actives[containerId]->launched.set(Nothing());
 
+    // Wrap the orphan destruction by a wait so we know when it is
+    // finally gone.
     futures.push_back(_wait(containerId));
 
     destroy(containerId);
   }
 
-  if (!orphaned.empty()) {
-    // If all orphans have terminated then continue.
-    return collect(futures)
-      .then(defer(
-          PID<ExternalContainerizerProcess>(this),
-          &ExternalContainerizerProcess::___recover));
-  }
-  return Nothing();
+  VLOG(1) << "Awaiting all orphans to get destructed";
+
+  // Orphan destruction needs to complete before we satisfy the
+  // returned future.
+  return collect(futures)
+    .then(defer(
+        PID<ExternalContainerizerProcess>(this),
+        &ExternalContainerizerProcess::___recover));
 }
 
 
 Future<Nothing> ExternalContainerizerProcess::___recover()
 {
+  VLOG(1) << "Recovery done";
   return Nothing();
 }
 
@@ -429,7 +434,7 @@ Future<Nothing> ExternalContainerizerProcess::launch(
     const PID<Slave>& slavePid,
     bool checkpoint)
 {
-  LOG(INFO) << "Launching container '" << containerId << "'";
+  VLOG(1) << "Launching container '" << containerId << "'";
 
   if (actives.contains(containerId)) {
     return Failure("Cannot start already running container '" +
