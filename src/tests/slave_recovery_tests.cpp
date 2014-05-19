@@ -2347,14 +2347,13 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
   slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
-  Clock::pause();
-
   AWAIT_READY(_recover);
 
-  Clock::settle(); // Wait for slave to schedule reregister timeout.
-
+/*
+  Clock::pause();
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
-
+  Clock::settle(); // Wait for slave to schedule reregister timeout.
+*/
   // Wait for the slave to re-register.
   AWAIT_READY(reregisterSlaveMessage);
 
@@ -2371,23 +2370,30 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
   // Kill the task.
   driver2.killTask(task.task_id());
 
+/*
+  while (status.isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
+*/
   // Wait for TASK_KILLED update.
   AWAIT_READY(status);
   ASSERT_EQ(TASK_KILLED, status.get().state());
 
+/*
   // Advance the clock until the allocator allocates
   // the recovered resources.
   while (offers2.isPending()) {
     Clock::advance(Seconds(1));
     Clock::settle();
   }
-
+*/
   // Make sure all slave resources are reoffered.
   AWAIT_READY(offers2);
   ASSERT_EQ(Resources(offers1.get()[0].resources()),
             Resources(offers2.get()[0].resources()));
 
-  Clock::resume();
+  //Clock::resume();
 
   driver2.stop();
   driver2.join();
@@ -2477,6 +2483,7 @@ TYPED_TEST(SlaveRecoveryTest, PartitionedSlave)
     FUTURE_DISPATCH(_, &Slave::executorTerminated);
 
   Clock::pause();
+  Clock::settle();
 
   // Now, induce a partition of the slave by having the master
   // timeout the slave.
@@ -2630,18 +2637,18 @@ TYPED_TEST(SlaveRecoveryTest, MasterFailover)
   slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
-  Clock::pause();
-
   AWAIT_READY(_recover);
 
-  Clock::settle(); // Wait for slave to schedule reregister timeout.
-
+/*
+  Clock::pause();
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
+  Clock::settle(); // Wait for slave to schedule reregister timeout.
+*/
 
   // Wait for the slave to re-register.
   AWAIT_READY(reregisterSlaveMessage);
 
-  Clock::resume();
+//  Clock::resume();
 
   Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(_, _))
@@ -2794,18 +2801,17 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   slave = this->StartSlave(containerizer2.get(), flags);
   ASSERT_SOME(slave);
 
-  Clock::pause();
-
   AWAIT_READY(_recover);
 
+/*
+  Clock::pause();
   Clock::settle(); // Wait for slave to schedule reregister timeout.
-
   Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
-
+*/
   // Wait for the slave to re-register.
   AWAIT_READY(reregisterSlaveMessage);
 
-  Clock::resume();
+  //Clock::resume();
 
   // Expectations for the status changes as a result of killing the
   // tasks.
@@ -2969,20 +2975,8 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
   slave2 = this->StartSlave(containerizer4.get(), flags2);
   ASSERT_SOME(slave2);
 
-  Clock::pause();
-
   AWAIT_READY(_recover1);
   AWAIT_READY(_recover2);
-
-  // Wait for slaves to schedule reregister timeout.
-  Clock::settle();
-
-  Clock::advance(EXECUTOR_REREGISTER_TIMEOUT);
-
-  // Make sure all pending timeouts are fired.
-  Clock::settle();
-
-  Clock::resume();
 
   // Wait for the slaves to re-register.
   AWAIT_READY(reregisterSlave1);
@@ -3094,6 +3088,11 @@ TYPED_TEST(SlaveRecoveryTest, RestartBeforeContainerizerLaunch)
   ASSERT_SOME(slave);
 
   Clock::pause();
+
+  while (_recover.isPending()) {
+    Clock::advance(Seconds(1));
+    Clock::settle();
+  }
 
   AWAIT_READY(_recover);
 
