@@ -154,7 +154,7 @@ struct SyncProtocol
     delete process;
 
     if (!future.isReady()) {
-      return Error("Failed to receive result");
+      return Error("Failed to receive a result");
     }
 
     return future.get();
@@ -207,13 +207,13 @@ protected:
         &ThunkProcess::usage,
         &Usage::container_id);
 
+    // Sync parent and child process.
     int pipe = open(fifoPath.c_str(), O_WRONLY);
     if (pipe < 0) {
-      cerr << "Failed open fifo" << endl;
+      cerr << "Failed open fifo: " << strerror(errno) << endl;
       return;
     }
-    // Sync parent and child process.
-    int sync = 42;
+    int sync = 0;
     while (::write(pipe, &sync, sizeof(sync)) == -1 &&
            errno == EINTR);
     close(pipe);
@@ -224,12 +224,6 @@ protected:
     Try<Nothing> rmPid = os::rm(pidPath);
     if (rmPid.isError()) {
       cerr << "Failed to remove '" << pidPath << "': " << rmPid.error()
-           << endl;
-    }
-
-    Try<Nothing> rmFifo = os::rm(fifoPath);
-    if (rmFifo.isError()) {
-      cerr << "Failed to remove '" << fifoPath << "': " << rmFifo.error()
            << endl;
     }
   }
@@ -537,7 +531,7 @@ private:
 
   Option<Error> daemonize()
   {
-    const string& workDirectory(thunkDirectory(directory));
+    string workDirectory = thunkDirectory(directory);
 
     // Create a named pipe for syncing parent and child process.
     string fifoPath = path::join(workDirectory, "fifo");
@@ -545,10 +539,8 @@ private:
       return ErrnoError("Failed to create fifo");
     }
 
-    cerr << "forking daemon for " << workDirectory << endl;
-
-    string command = argv0 +
-        " setup 2>>/tmp/test-containerizer-logs/daemon_err";
+    string daemonStderr = path::join(workDirectory, "daemon_stderr");
+    string command = argv0 + " setup 2>>" + daemonStderr;
 
     // Spawn the process and wait for it in a child process.
     int pid = ::fork();
@@ -556,13 +548,11 @@ private:
       return ErrnoError("Failed to fork");;
     }
     if (pid == 0) {
-//      execl(argv0.c_str(), argv0.c_str(), "setup", NULL);
       execl("/bin/sh", "sh", "-c", command.c_str(), (char*) NULL);
       ABORT("exec failed");
     }
 
-    // We are in the parent context.
-    // Sync parent and child process.
+    // We are in the parent context. Sync parent and child process.
     int pipe = open(fifoPath.c_str(), O_RDONLY);
     if (pipe < 0) {
       return ErrnoError("Failed open fifo");
@@ -609,22 +599,7 @@ private:
     // Send a request and receive an answer via process protobuf
     // exchange.
     SyncProtocol<T, R> protocol;
-    Try<R> r = protocol(pid.get(), t);
-    return r;
-    /*
-    Protocol<T, R> protocol;
-    Future<R> future = protocol(pid.get(), t);
-
-    future.await();
-
-    if (!future.isReady()) {
-      return Error("Future not ready");
-    }
-
-    VLOG(1) << "...thunking done";
-
-    return future.get();
-    */
+    return protocol(pid.get(), t);
   }
 
   // Transmit a message via socket to the MesosContainerizer, block
@@ -680,6 +655,12 @@ public:
     process::spawn(process, true);
     process::wait(process);
 
+    Try<Nothing> rmFifo = os::rm(fifoPath);
+    if (rmFifo.isError()) {
+      cerr << "Failed to remove '" << fifoPath << "': " << rmFifo.error()
+           << endl;
+    }
+
     os::rmdir(workDirectory);
 
     return 0;
@@ -693,7 +674,7 @@ public:
     return 0;
   }
 
-  // Start a containerized executor. Expects to receive an Launch
+  // Start a containerized executor. Expects to receive a Launch
   // protobuf via stdin.
   int launch()
   {
@@ -705,54 +686,41 @@ public:
       return 1;
     }
 
-    string id = received.get().has_task_info()
-                ? "task " +
-                    received.get().task_info().task_id().value()
-                : "executor " +
-                    received.get().executor_info().executor_id().value();
-
-
     // Create test-comtainerizer work directory.
     CHECK_SOME(os::mkdir(workDirectory))
       << "Failed to create test-containerizer work directory '"
       << workDirectory << "'";
 
-    // We need a mutex at this point to prevent double daemonizing
-    // ...................
-
     string lockPath = path::join(workDirectory, "pid_lock");
-
     int fd;
-    while(true) {
+
+    // We need a file lock at this point to prevent double daemonizing
+    // attempts.
+    while (true) {
       fd = open(lockPath.c_str(), O_WRONLY | O_CREAT | O_EXLOCK);
       if (fd != -1 || (fd == -1 && (errno != EINTR && errno != EACCES))) {
         break;
       }
-      cerr << "waiting for lock for " << id << endl;
       os::sleep(Milliseconds(100));
     }
     if (fd == -1) {
-      cerr << "failed to access lock file" << strerror(errno) << endl;
+      cerr << "Failed to access lock file " << strerror(errno) << endl;
       return 1;
     }
-    cerr << "lock acquired for " << id << endl;
 
-    // Checks if a daemon is running, if not, it forks one.
+    // Checks if a daemon is running and if not, it forks one.
     if (!os::isfile(path::join(workDirectory, "pid"))) {
-
-      cerr << "daemonizing for " << id << endl;
       Option<Error> daemonized = daemonize();
       if (daemonized.isSome()) {
-        cerr << "daemonizing failed: " << daemonized.get().message << endl;
+        cerr << "Daemonizing failed: " << daemonized.get().message << endl;
+        close(fd);
+        os::rm(lockPath);
         return 1;
       }
     }
+
     close(fd);
     os::rm(lockPath);
-
-    // ...................
-    // We need a mutex at this point to prevent double daemonizing
-
 
     // We need to wrap the Launch message as "install" only supports
     // up to 6 parameters whereas the Launch message has 8 members.
@@ -761,11 +729,9 @@ public:
 
     Try<LaunchResult> result = thunk<LaunchRequest, LaunchResult>(wrapped);
     if (result.isError()) {
-      cerr << "Launch thunking for "<< id << " failed: " << result.error()
-           << endl;
+      cerr << "Launch thunking failed: " << result.error() << endl;
       return 1;
     }
-    cerr << "Launch thunking for " << id << " done." << endl;
     return 0;
   }
 
