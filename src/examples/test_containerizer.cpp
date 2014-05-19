@@ -259,13 +259,6 @@ protected:
   }
 
 private:
-  // Terminates both processes.
-  void shutdown()
-  {
-    terminate(containerizer->self());
-    terminate(this->self());
-  }
-
   // Initiates a periodic check for active containers on the
   // MesosContainerizerProcess.
   void startGarbageCollecting()
@@ -293,15 +286,18 @@ private:
   // termination of both processes.
   void _garbageCollect(const hashset<ContainerID>& containers)
   {
+    // When no containers are active, shutdown.
     if(containers.empty()) {
-      // When no containers are active, shutdown.
-      shutdown();
+      terminate(containerizer->self());
+      terminate(this->self());
       return;
     }
     // Garbage collect forever.
     process::delay(Seconds(1), self(), &Self::garbageCollect);
   }
 
+  // Answer the original request with a protobuffed result created
+  // from the dispatched future and its container.
   // Future<hashset<ContainerID> > overload.
   void reply(const UPID& from, const Future<hashset<ContainerID> >& future)
   {
@@ -348,8 +344,6 @@ private:
     send(from, r);
   }
 
-  // Answer the original request with a protobuffed result created
-  // from the dispatched future and its container.
   // Future<protobuf::Message> overload
   // TODO(tillt): Find a way to combine all overloads into this or
   // refactor the common code into a separate function.
@@ -709,32 +703,41 @@ public:
 
     // We need a file lock at this point to prevent double daemonizing
     // attempts due to concurrent launch invocations.
-    int fd;
-    while (true) {
-      fd = open(lockPath(directory).c_str(), O_WRONLY | O_CREAT | O_EXLOCK);
-      if (fd != -1 || (fd == -1 && (errno != EINTR && errno != EACCES))) {
-        break;
-      }
-      os::sleep(Milliseconds(100));
-    }
-    if (fd == -1) {
-      cerr << "Failed to access lock file " << strerror(errno) << endl;
+    int lock = open(
+        lockPath(directory).c_str(),
+        O_WRONLY | O_CREAT,
+        S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+    if (lock == -1) {
+      cerr << "Failed to create lock file " << strerror(errno) << endl;
       return 1;
     }
+
+    cerr << "attempting to acquire lock" << endl;
+    if (flock(lock, LOCK_EX) != 0) {
+      cerr << "Failed to lock file " << strerror(errno) << endl;
+      return 1;
+    }
+    cerr << "acquired lock" << endl;
 
     // Checks if a daemon is running and if not, it forks one.
     if (!os::isfile(pidPath(directory))) {
       Option<Error> daemonized = daemonize();
       if (daemonized.isSome()) {
         cerr << "Daemonizing failed: " << daemonized.get().message << endl;
-        close(fd);
-        os::rm(lockPath(directory));
+        if (flock(lock, LOCK_UN) != 0) {
+          cerr << "Could not unlock lock file" << strerror(errno) << endl;
+          return 1;
+        }
+        close(lock);
         return 1;
       }
     }
 
-    close(fd);
-    os::rm(lockPath(directory));
+    if (flock(lock, LOCK_UN) != 0) {
+      cerr << "Could not unlock lock file" << strerror(errno) << endl;
+      return 1;
+    }
+    close(lock);
 
     // We need to wrap the Launch message as "install" only supports
     // up to 6 parameters whereas the Launch message has 8 members.
@@ -810,8 +813,7 @@ public:
   {
     // We may be asked for containers even if we never received a
     // launch on this slave.
-    const string& workDirectory(thunkDirectory(directory));
-    if (!os::isfile(path::join(workDirectory, "pid"))) {
+    if (!os::isfile(pidPath(directory))) {
       // Answer the request with an empty containers message.
       Containers containers;
       Try<Nothing> sent = send(containers);
