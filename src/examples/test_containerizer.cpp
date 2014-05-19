@@ -16,31 +16,28 @@
  * limitations under the License.
  */
 
-// The scheme an external containerizer has to adhere to is;
+// The test-containerizr is posing as a external containerizer by
+// using the MesosContainerizerProcess (MC) to handle the actual
+// containerizing.
+// The MC is wrapped by a protobuf process based communication
+// interface (thunk). Both processes are run in form of a daemon.
+// The daemon is controlled by invocations of this test-containerizer
+// as a trigger executable.
 //
-// COMMAND < INPUT-PROTO > RESULT-PROTO
+// Both processes are spawned implicitely whenever "launch" is invoked
+// on a MESOS_WORK_DIRECTORY that does not have a daemon running yet.
+// The daemon terminates itself whenever there are no more active
+// containers according to the MesosContainerizerProcess.
 //
-// launch < containerizer::Launch
-// update < containerizer::Update
-// usage < containerizer::Usage > ResourceStatistics
-// wait < containerizer::Wait > containerizer::Termination
-// destroy < containerizer::Destroy
-// containers > containerizer::Containers
-// recover
-//
-// 'wait' is expected to block until the task command/executor has
-// terminated.
+// The resulting communication scheme is as follows:
+// ExternalContainerizer-trigger-thunk-MesosContainerizerProcess
 
-#include <sys/resource.h>
-
-
-#include <stdlib.h>     // exit
+#include <stdlib.h>
 
 #include <iostream>
 #include <fstream>
 #include <string>
 
-#include <mesos/mesos.hpp>
 #include <mesos/mesos.hpp>
 #include <mesos/containerizer/containerizer.hpp>
 
@@ -51,8 +48,8 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
-#include <stout/hashset.hpp>
 #include <stout/flags.hpp>
+#include <stout/hashset.hpp>
 #include <stout/lambda.hpp>
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
@@ -105,7 +102,7 @@ Try<Nothing> send(const google::protobuf::Message& message)
 // container (payload) FutureResult.status. When both are ready,
 // return the container.
 template<typename T>
-static Try<T> validate(const Future<T>& future)
+Try<T> validate(const Future<T>& future)
 {
   if (!future.isReady()) {
     return Error("Outer result future " +
@@ -125,9 +122,33 @@ static Try<T> validate(const Future<T>& future)
 }
 
 
-static string thunkDirectory(const string& directory)
+string thunkDirectory(const string& directory)
 {
   return path::join(directory, "test_containerizer");
+}
+
+
+string fifoPath(const string& directory)
+{
+  return path::join(thunkDirectory(directory), "fifo");
+}
+
+
+string pidPath(const string& directory)
+{
+  return path::join(thunkDirectory(directory), "pid");
+}
+
+
+string daemonStderrPath(const string& directory)
+{
+  return path::join(thunkDirectory(directory), "daemon_stderr");
+}
+
+
+string lockPath(const string& directory)
+{
+  return path::join(thunkDirectory(directory), "pid_lock");
 }
 
 
@@ -167,8 +188,12 @@ struct SyncProtocol
 class ThunkProcess : public ProtobufProcess<ThunkProcess>
 {
 public:
-  explicit ThunkProcess(MesosContainerizerProcess* containerizer)
-  : containerizer(containerizer), garbageCollecting(false) {}
+  explicit ThunkProcess(
+      MesosContainerizerProcess* containerizer,
+      const string& directory)
+  : containerizer(containerizer),
+    directory(directory),
+    garbageCollecting(false) {}
 
   virtual ~ThunkProcess() {}
 
@@ -176,7 +201,7 @@ protected:
   virtual void initialize()
   {
     try {
-      std::fstream file(pidPath, std::ios::out);
+      std::fstream file(pidPath(directory), std::ios::out);
       file << self();
       file.close();
     } catch(std::exception e) {
@@ -208,7 +233,7 @@ protected:
         &Usage::container_id);
 
     // Sync parent and child process.
-    int pipe = open(fifoPath.c_str(), O_WRONLY);
+    int pipe = open(fifoPath(directory).c_str(), O_WRONLY);
     if (pipe < 0) {
       cerr << "Failed open fifo: " << strerror(errno) << endl;
       return;
@@ -221,10 +246,10 @@ protected:
 
   virtual void finalize()
   {
-    Try<Nothing> rmPid = os::rm(pidPath);
+    Try<Nothing> rmPid = os::rm(pidPath(directory));
     if (rmPid.isError()) {
-      cerr << "Failed to remove '" << pidPath << "': " << rmPid.error()
-           << endl;
+      cerr << "Failed to remove '" << pidPath(directory)
+           << "': " << rmPid.error() << endl;
     }
   }
 
@@ -460,9 +485,7 @@ private:
 
   MesosContainerizerProcess* containerizer;
 
-public:
-  string fifoPath;
-  string pidPath;
+  string directory;
   bool garbageCollecting;
 };
 
@@ -529,20 +552,19 @@ private:
     return containerizer;
   }
 
+  // Recursively run this executable by passing in the "setup"
+  // command. stderr output is redirected o a subdirectory of
+  // the given MESOS_WORK_DIRECTORY into the file "daemon_stderr".
+  // This call blocks until the daemon has fully initialized.
   Option<Error> daemonize()
   {
-    string workDirectory = thunkDirectory(directory);
-
     // Create a named pipe for syncing parent and child process.
-    string fifoPath = path::join(workDirectory, "fifo");
-    if (mkfifo(fifoPath.c_str(), 0666) < 0) {
+    if (mkfifo(fifoPath(directory).c_str(), 0666) < 0) {
       return ErrnoError("Failed to create fifo");
     }
 
-    string daemonStderr = path::join(workDirectory, "daemon_stderr");
-    string command = argv0 + " setup 2>>" + daemonStderr;
+    string command = argv0 + " setup 2>>" + daemonStderrPath(directory);
 
-    // Spawn the process and wait for it in a child process.
     int pid = ::fork();
     if (pid == -1) {
       return ErrnoError("Failed to fork");;
@@ -553,7 +575,7 @@ private:
     }
 
     // We are in the parent context. Sync parent and child process.
-    int pipe = open(fifoPath.c_str(), O_RDONLY);
+    int pipe = open(fifoPath(directory).c_str(), O_RDONLY);
     if (pipe < 0) {
       return ErrnoError("Failed open fifo");
     }
@@ -568,15 +590,14 @@ private:
   // Tries to get the PID of a running daemon.
   Try<PID<ThunkProcess> > initialize()
   {
-    const string& workDirectory(thunkDirectory(directory));
     // An existing pid-file signals that the daemon is active.
-    if (!os::isfile(path::join(workDirectory, "pid"))) {
+    if (!os::isfile(pidPath(directory))) {
       return Error("PID-file does not exist");
     }
 
     PID<ThunkProcess> pid;
     try {
-      std::ifstream file(path::join(workDirectory, "pid"));
+      std::fstream file(pidPath(directory), std::ios::in);
       file >> pid;
       file.close();
     } catch(std::exception e) {
@@ -622,10 +643,11 @@ private:
   }
 
 public:
+  // Initialize and spawn both, the MesosContainerizerProcess as well
+  // as the wrapping communication interface, the ThunkProcess.
+  // This call blocks until the ThunkProcess has been terminated.
   int setup()
   {
-    const string& workDirectory(thunkDirectory(directory));
-
     Try<MesosContainerizerProcess*> containerizer =
       createContainerizer(directory);
     if (containerizer.isError()) {
@@ -638,30 +660,20 @@ public:
     MesosContainerizerProcess* container = containerizer.get();
     process::spawn(container, true);
 
-    // TODO(tillt): move this into the ThunkProcess and hand over
-    // the workdir only.
-
-    // Create a named pipe for syncing parent and child process.
-    string fifoPath = path::join(workDirectory, "fifo");
-    // Serialize the PID to the filesystem.
-    string pidPath = path::join(workDirectory, "pid");
-
     // Create our ThunkProcess, wrapping the containerizer process.
-    ThunkProcess* process = new ThunkProcess(container);
-    process->fifoPath = fifoPath;
-    process->pidPath = pidPath;
+    ThunkProcess* process = new ThunkProcess(container, directory);
 
     // Run until we get terminated via teardown.
     process::spawn(process, true);
     process::wait(process);
 
-    Try<Nothing> rmFifo = os::rm(fifoPath);
+    // Cleanup all artefacts.
+    Try<Nothing> rmFifo = os::rm(fifoPath(directory));
     if (rmFifo.isError()) {
-      cerr << "Failed to remove '" << fifoPath << "': " << rmFifo.error()
-           << endl;
+      cerr << "Failed to remove '" << fifoPath(directory)
+           << "': " << rmFifo.error() << endl;
     }
-
-    os::rmdir(workDirectory);
+    os::rmdir(thunkDirectory(directory));
 
     return 0;
   }
@@ -678,8 +690,6 @@ public:
   // protobuf via stdin.
   int launch()
   {
-    const string& workDirectory(thunkDirectory(directory));
-
     Result<Launch> received = receive<Launch>();
     if (received.isError()) {
       cerr << "Failed to receive from pipe: " << received.error() << endl;
@@ -687,17 +697,15 @@ public:
     }
 
     // Create test-comtainerizer work directory.
-    CHECK_SOME(os::mkdir(workDirectory))
+    CHECK_SOME(os::mkdir(thunkDirectory(directory)))
       << "Failed to create test-containerizer work directory '"
-      << workDirectory << "'";
-
-    string lockPath = path::join(workDirectory, "pid_lock");
-    int fd;
+      << thunkDirectory(directory) << "'";
 
     // We need a file lock at this point to prevent double daemonizing
     // attempts.
+    int fd;
     while (true) {
-      fd = open(lockPath.c_str(), O_WRONLY | O_CREAT | O_EXLOCK);
+      fd = open(lockPath(directory).c_str(), O_WRONLY | O_CREAT | O_EXLOCK);
       if (fd != -1 || (fd == -1 && (errno != EINTR && errno != EACCES))) {
         break;
       }
@@ -709,18 +717,18 @@ public:
     }
 
     // Checks if a daemon is running and if not, it forks one.
-    if (!os::isfile(path::join(workDirectory, "pid"))) {
+    if (!os::isfile(pidPath(directory))) {
       Option<Error> daemonized = daemonize();
       if (daemonized.isSome()) {
         cerr << "Daemonizing failed: " << daemonized.get().message << endl;
         close(fd);
-        os::rm(lockPath);
+        os::rm(lockPath(directory));
         return 1;
       }
     }
 
     close(fd);
-    os::rm(lockPath);
+    os::rm(lockPath(directory));
 
     // We need to wrap the Launch message as "install" only supports
     // up to 6 parameters whereas the Launch message has 8 members.
@@ -858,23 +866,12 @@ void usage(const char* argv0, const hashset<string>& commands)
   }
 }
 
-static bool enableCoreDumps(void)
-{
-    struct rlimit limit;
-
-    limit.rlim_cur = RLIM_INFINITY;
-    limit.rlim_max = RLIM_INFINITY;
-
-    return setrlimit(RLIMIT_CORE, &limit) == 0;
-}
 
 int main(int argc, char** argv)
 {
   using namespace mesos;
   using namespace internal;
   using namespace slave;
-
-  enableCoreDumps();
 
   CHECK(os::hasenv("MESOS_WORK_DIRECTORY"))
     << "Missing MESOS_WORK_DIRECTORY environment variable";
