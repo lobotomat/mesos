@@ -33,6 +33,7 @@
 // ExternalContainerizer-trigger-thunk-MesosContainerizerProcess
 
 #include <fcntl.h>
+#include <sys/file.h>
 #include <stdlib.h>
 
 #include <iostream>
