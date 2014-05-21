@@ -35,6 +35,44 @@
 		BB8DD639192D1E5C00D7B2EB /* containerizer.proto in Sources */ = {isa = PBXBuildFile; fileRef = BB151EF71913D34100876C12 /* containerizer.proto */; };
 		BB8DD647192D1FB100D7B2EB /* in_memory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BB8DD643192D1FA200D7B2EB /* in_memory.cpp */; };
 		BB8DD648192D1FB400D7B2EB /* log.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BB8DD645192D1FA200D7B2EB /* log.cpp */; };
+		BB8DD671192D237400D7B2EB /* allocator_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8734B18C1E74D001F018E /* allocator_tests.cpp */; };
+		BB8DD673192D237A00D7B2EB /* attributes_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8734D18C1E74E001F018E /* attributes_tests.cpp */; };
+		BB8DD674192D237C00D7B2EB /* authentication_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8734E18C1E74E001F018E /* authentication_tests.cpp */; };
+		BB8DD675192D237F00D7B2EB /* cgroups_isolator_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8735018C1E74E001F018E /* cgroups_isolator_tests.cpp */; };
+		BB8DD677192D238D00D7B2EB /* containerizer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8735318C1E74E001F018E /* containerizer.cpp */; };
+		BB8DD678192D239300D7B2EB /* environment.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8735518C1E74E001F018E /* environment.cpp */; };
+		BB8DD679192D239B00D7B2EB /* examples_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8735718C1E74E001F018E /* examples_tests.cpp */; };
+		BB8DD67A192D239E00D7B2EB /* exception_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8735818C1E74E001F018E /* exception_tests.cpp */; };
+		BB8DD67B192D23A000D7B2EB /* fault_tolerance_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8735918C1E74E001F018E /* fault_tolerance_tests.cpp */; };
+		BB8DD67C192D23A300D7B2EB /* files_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8735A18C1E74E001F018E /* files_tests.cpp */; };
+		BB8DD67D192D23A600D7B2EB /* flags.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8735B18C1E74E001F018E /* flags.cpp */; };
+		BB8DD67E192D23A900D7B2EB /* fs_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8735D18C1E74E001F018E /* fs_tests.cpp */; };
+		BB8DD67F192D23B000D7B2EB /* gc_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8735E18C1E74E001F018E /* gc_tests.cpp */; };
+		BB8DD680192D23B300D7B2EB /* group_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8735F18C1E74E001F018E /* group_tests.cpp */; };
+		BB8DD681192D23B500D7B2EB /* isolator_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8736018C1E74E001F018E /* isolator_tests.cpp */; };
+		BB8DD682192D23B800D7B2EB /* log_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8736418C1E74E001F018E /* log_tests.cpp */; };
+		BB8DD683192D23BA00D7B2EB /* logging_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8736518C1E74E001F018E /* logging_tests.cpp */; };
+		BB8DD684192D23BC00D7B2EB /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8736618C1E74E001F018E /* main.cpp */; };
+		BB8DD685192D23BF00D7B2EB /* master_contender_detector_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8736718C1E74E001F018E /* master_contender_detector_tests.cpp */; };
+		BB8DD686192D23C200D7B2EB /* master_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8736818C1E74E001F018E /* master_tests.cpp */; };
+		BB8DD687192D23C400D7B2EB /* mesos.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8736918C1E74E001F018E /* mesos.cpp */; };
+		BB8DD688192D23C900D7B2EB /* monitor_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8736B18C1E74E001F018E /* monitor_tests.cpp */; };
+		BB8DD689192D23CD00D7B2EB /* paths_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8736D18C1E74E001F018E /* paths_tests.cpp */; };
+		BB8DD68A192D23D000D7B2EB /* process_spawn.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8736E18C1E74E001F018E /* process_spawn.cpp */; };
+		BB8DD68B192D23D200D7B2EB /* protobuf_io_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8736F18C1E74E001F018E /* protobuf_io_tests.cpp */; };
+		BB8DD68C192D23D400D7B2EB /* registrar_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8737118C1E74E001F018E /* registrar_tests.cpp */; };
+		BB8DD68D192D23D700D7B2EB /* repair_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8737218C1E74E001F018E /* repair_tests.cpp */; };
+		BB8DD68E192D23D900D7B2EB /* resource_offers_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8737318C1E74E001F018E /* resource_offers_tests.cpp */; };
+		BB8DD68F192D23DC00D7B2EB /* resources_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8737418C1E74E001F018E /* resources_tests.cpp */; };
+		BB8DD690192D23DE00D7B2EB /* sasl_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8737518C1E74E001F018E /* sasl_tests.cpp */; };
+		BB8DD691192D23E100D7B2EB /* script.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8737618C1E74E001F018E /* script.cpp */; };
+		BB8DD692192D23E500D7B2EB /* slave_recovery_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8737818C1E74E001F018E /* slave_recovery_tests.cpp */; };
+		BB8DD693192D23ED00D7B2EB /* sorter_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8737918C1E74E001F018E /* sorter_tests.cpp */; };
+		BB8DD694192D23EF00D7B2EB /* state_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8737A18C1E74E001F018E /* state_tests.cpp */; };
+		BB8DD695192D23F200D7B2EB /* status_update_manager_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8737B18C1E74E001F018E /* status_update_manager_tests.cpp */; };
+		BB8DD696192D23F500D7B2EB /* utils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8737D18C1E74E001F018E /* utils.cpp */; };
+		BB8DD697192D23FA00D7B2EB /* values_tests.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8737F18C1E74E001F018E /* values_tests.cpp */; };
+		BB8DD698192D240100D7B2EB /* zookeeper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8738018C1E74E001F018E /* zookeeper.cpp */; };
 		BBB8719818C1879F001F018E /* libstate.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BBB8718818C18676001F018E /* libstate.a */; };
 		BBB871B018C18896001F018E /* libmesos_no_3rdparty.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BBF88A9E18C13E3100E83221 /* libmesos_no_3rdparty.dylib */; };
 		BBB871B118C1894E001F018E /* libglog.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BBF88C6218C1498600E83221 /* libglog.0.dylib */; };
@@ -157,15 +195,6 @@
 		BBB8747B18C1E74E001F018E /* state.hpp in Headers */ = {isa = PBXBuildFile; fileRef = BBB8734618C1E74D001F018E /* state.hpp */; };
 		BBB8747C18C1E74E001F018E /* storage.hpp in Headers */ = {isa = PBXBuildFile; fileRef = BBB8734718C1E74D001F018E /* storage.hpp */; };
 		BBB8747E18C1E74E001F018E /* zookeeper.hpp in Headers */ = {isa = PBXBuildFile; fileRef = BBB8734918C1E74D001F018E /* zookeeper.hpp */; };
-		BBB8748518C1E74E001F018E /* cluster.hpp in Headers */ = {isa = PBXBuildFile; fileRef = BBB8735218C1E74E001F018E /* cluster.hpp */; };
-		BBB8748718C1E74E001F018E /* containerizer.hpp in Headers */ = {isa = PBXBuildFile; fileRef = BBB8735418C1E74E001F018E /* containerizer.hpp */; };
-		BBB8748918C1E74E001F018E /* environment.hpp in Headers */ = {isa = PBXBuildFile; fileRef = BBB8735618C1E74E001F018E /* environment.hpp */; };
-		BBB8748F18C1E74E001F018E /* flags.hpp in Headers */ = {isa = PBXBuildFile; fileRef = BBB8735C18C1E74E001F018E /* flags.hpp */; };
-		BBB8749A18C1E74E001F018E /* mesos.hpp in Headers */ = {isa = PBXBuildFile; fileRef = BBB8736A18C1E74E001F018E /* mesos.hpp */; };
-		BBB874A518C1E74E001F018E /* script.hpp in Headers */ = {isa = PBXBuildFile; fileRef = BBB8737718C1E74E001F018E /* script.hpp */; };
-		BBB874AB18C1E74E001F018E /* utils.hpp in Headers */ = {isa = PBXBuildFile; fileRef = BBB8737E18C1E74E001F018E /* utils.hpp */; };
-		BBB874AE18C1E74E001F018E /* zookeeper.hpp in Headers */ = {isa = PBXBuildFile; fileRef = BBB8738118C1E74E001F018E /* zookeeper.hpp */; };
-		BBB874B018C1E74E001F018E /* zookeeper_test_server.hpp in Headers */ = {isa = PBXBuildFile; fileRef = BBB8738318C1E74E001F018E /* zookeeper_test_server.hpp */; };
 		BBB874C518C1E74E001F018E /* authentication.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB873BA18C1E74E001F018E /* authentication.cpp */; };
 		BBB874C618C1E74E001F018E /* authentication.hpp in Headers */ = {isa = PBXBuildFile; fileRef = BBB873BB18C1E74E001F018E /* authentication.hpp */; };
 		BBB874C718C1E74E001F018E /* contender.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB873BC18C1E74E001F018E /* contender.cpp */; };
@@ -459,6 +488,15 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		BB8DD65C192D231300D7B2EB /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
 		BBB871A218C18842001F018E /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -562,6 +600,7 @@
 		BB8DD644192D1FA200D7B2EB /* in_memory.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = in_memory.hpp; path = ../src/state/in_memory.hpp; sourceTree = SOURCE_ROOT; };
 		BB8DD645192D1FA200D7B2EB /* log.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = log.cpp; path = ../src/state/log.cpp; sourceTree = SOURCE_ROOT; };
 		BB8DD646192D1FA200D7B2EB /* log.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = log.hpp; path = ../src/state/log.hpp; sourceTree = SOURCE_ROOT; };
+		BB8DD65E192D231300D7B2EB /* mesos-tests */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "mesos-tests"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BBB8718818C18676001F018E /* libstate.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libstate.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		BBB871A418C18842001F018E /* mesos-master */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "mesos-master"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BBB871B818C189CA001F018E /* mesos-slave */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "mesos-slave"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -933,6 +972,13 @@
 
 /* Begin PBXFrameworksBuildPhase section */
 		BB01F4C018C183C700E64633 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BB8DD65B192D231300D7B2EB /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -1982,6 +2028,7 @@
 				BBB8754118C282D3001F018E /* mesos-execute */,
 				BBB8755518C283C4001F018E /* mesos-log */,
 				BBB8756A18C28431001F018E /* mesos-resolve */,
+				BB8DD65E192D231300D7B2EB /* mesos-tests */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -2080,13 +2127,11 @@
 				BBB8741618C1E74E001F018E /* catchup.hpp in Headers */,
 				BBB874CC18C1E74E001F018E /* group.hpp in Headers */,
 				BBB8742218C1E74E001F018E /* recover.hpp in Headers */,
-				BBB8748718C1E74E001F018E /* containerizer.hpp in Headers */,
 				BBB8740218C1E74E001F018E /* io.hpp in Headers */,
 				BBB8745518C1E74E001F018E /* authenticator.hpp in Headers */,
 				BBB873E918C1E74E001F018E /* hdfs.hpp in Headers */,
 				BBB8742F18C1E74E001F018E /* flags.hpp in Headers */,
 				BBB8747318C1E74E001F018E /* slave.hpp in Headers */,
-				BBB8749A18C1E74E001F018E /* mesos.hpp in Headers */,
 				BBB8744718C1E74E001F018E /* log.hpp in Headers */,
 				BBB8743418C1E74E001F018E /* constants.hpp in Headers */,
 				BBB873D318C1E74E001F018E /* lock.hpp in Headers */,
@@ -2109,7 +2154,6 @@
 				BBB8741E18C1E74E001F018E /* log.hpp in Headers */,
 				BBB8741018C1E74E001F018E /* fs.hpp in Headers */,
 				BBB8745118C1E74E001F018E /* proxy_executor.hpp in Headers */,
-				BBB874B018C1E74E001F018E /* zookeeper_test_server.hpp in Headers */,
 				BBB8742918C1E74E001F018E /* initialize.hpp in Headers */,
 				BBB8741318C1E74E001F018E /* local.hpp in Headers */,
 				BBB8744B18C1E74E001F018E /* mesos_executor_driver_impl.hpp in Headers */,
@@ -2118,14 +2162,12 @@
 				BBB8742718C1E74E001F018E /* benchmark.hpp in Headers */,
 				BBB8744618C1E74E001F018E /* sorter.hpp in Headers */,
 				BB8DD635192D040800D7B2EB /* mesos_containerizer.hpp in Headers */,
-				BBB874AE18C1E74E001F018E /* zookeeper.hpp in Headers */,
 				BBB8747118C1E74E001F018E /* paths.hpp in Headers */,
 				BBB8743A18C1E74E001F018E /* drf_sorter.hpp in Headers */,
 				BBB8741A18C1E74E001F018E /* coordinator.hpp in Headers */,
 				BBB8744018C1E74E001F018E /* master.hpp in Headers */,
 				BBB8744918C1E74E001F018E /* state.hpp in Headers */,
 				BBB8746518C1E74E001F018E /* posix.hpp in Headers */,
-				BBB8748F18C1E74E001F018E /* flags.hpp in Headers */,
 				BBB8745318C1E74E001F018E /* proxy_scheduler.hpp in Headers */,
 				BBB874CE18C1E74E001F018E /* watcher.hpp in Headers */,
 				BBB8744518C1E74E001F018E /* repairer.hpp in Headers */,
@@ -2137,19 +2179,15 @@
 				BBB8746A18C1E74E001F018E /* flags.hpp in Headers */,
 				BBB8745A18C1E74E001F018E /* constants.hpp in Headers */,
 				BBB8743B18C1E74E001F018E /* flags.hpp in Headers */,
-				BBB874A518C1E74E001F018E /* script.hpp in Headers */,
 				BBB8743C18C1E74E001F018E /* hierarchical_allocator_process.hpp in Headers */,
 				BBB8740E18C1E74E001F018E /* cgroups.hpp in Headers */,
 				BBB8744218C1E74E001F018E /* registrar.hpp in Headers */,
 				BBB873E818C1E74E001F018E /* files.hpp in Headers */,
-				BBB874AB18C1E74E001F018E /* utils.hpp in Headers */,
 				BBB8747018C1E74E001F018E /* monitor.hpp in Headers */,
 				BBB873D718C1E74E001F018E /* type_utils.hpp in Headers */,
 				BBB874D018C1E74E001F018E /* zookeeper.hpp in Headers */,
-				BBB8748918C1E74E001F018E /* environment.hpp in Headers */,
 				BBB873EB18C1E74E001F018E /* construct.hpp in Headers */,
 				BBB8741118C1E74E001F018E /* flags.hpp in Headers */,
-				BBB8748518C1E74E001F018E /* cluster.hpp in Headers */,
 				BBB873D618C1E74E001F018E /* thread.hpp in Headers */,
 				BBB873D118C1E74E001F018E /* http.hpp in Headers */,
 				BBF88C6E18C14AE800E83221 /* scheduler.hpp in Headers */,
@@ -2185,6 +2223,23 @@
 			productName = log;
 			productReference = BB01F4C318C183C700E64633 /* liblog.a */;
 			productType = "com.apple.product-type.library.static";
+		};
+		BB8DD65D192D231300D7B2EB /* mesos-tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BB8DD669192D231400D7B2EB /* Build configuration list for PBXNativeTarget "mesos-tests" */;
+			buildPhases = (
+				BB8DD65A192D231300D7B2EB /* Sources */,
+				BB8DD65B192D231300D7B2EB /* Frameworks */,
+				BB8DD65C192D231300D7B2EB /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "mesos-tests";
+			productName = "mesos-tests";
+			productReference = BB8DD65E192D231300D7B2EB /* mesos-tests */;
+			productType = "com.apple.product-type.tool";
 		};
 		BBB8718718C18676001F018E /* state */ = {
 			isa = PBXNativeTarget;
@@ -2451,6 +2506,7 @@
 				BBB8756918C28431001F018E /* mesos-resolve */,
 				BBB871B718C189CA001F018E /* mesos-slave */,
 				BBB8750818C28046001F018E /* mesos-all */,
+				BB8DD65D192D231300D7B2EB /* mesos-tests */,
 			);
 		};
 /* End PBXProject section */
@@ -2558,6 +2614,51 @@
 				BBB874DD18C1EB27001F018E /* log.cpp in Sources */,
 				BBB874DE18C1EB27001F018E /* recover.cpp in Sources */,
 				BBB874DF18C1EB27001F018E /* replica.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BB8DD65A192D231300D7B2EB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BB8DD681192D23B500D7B2EB /* isolator_tests.cpp in Sources */,
+				BB8DD67F192D23B000D7B2EB /* gc_tests.cpp in Sources */,
+				BB8DD677192D238D00D7B2EB /* containerizer.cpp in Sources */,
+				BB8DD68A192D23D000D7B2EB /* process_spawn.cpp in Sources */,
+				BB8DD690192D23DE00D7B2EB /* sasl_tests.cpp in Sources */,
+				BB8DD693192D23ED00D7B2EB /* sorter_tests.cpp in Sources */,
+				BB8DD686192D23C200D7B2EB /* master_tests.cpp in Sources */,
+				BB8DD68C192D23D400D7B2EB /* registrar_tests.cpp in Sources */,
+				BB8DD688192D23C900D7B2EB /* monitor_tests.cpp in Sources */,
+				BB8DD68B192D23D200D7B2EB /* protobuf_io_tests.cpp in Sources */,
+				BB8DD67D192D23A600D7B2EB /* flags.cpp in Sources */,
+				BB8DD67C192D23A300D7B2EB /* files_tests.cpp in Sources */,
+				BB8DD68D192D23D700D7B2EB /* repair_tests.cpp in Sources */,
+				BB8DD68F192D23DC00D7B2EB /* resources_tests.cpp in Sources */,
+				BB8DD691192D23E100D7B2EB /* script.cpp in Sources */,
+				BB8DD679192D239B00D7B2EB /* examples_tests.cpp in Sources */,
+				BB8DD682192D23B800D7B2EB /* log_tests.cpp in Sources */,
+				BB8DD696192D23F500D7B2EB /* utils.cpp in Sources */,
+				BB8DD695192D23F200D7B2EB /* status_update_manager_tests.cpp in Sources */,
+				BB8DD697192D23FA00D7B2EB /* values_tests.cpp in Sources */,
+				BB8DD683192D23BA00D7B2EB /* logging_tests.cpp in Sources */,
+				BB8DD687192D23C400D7B2EB /* mesos.cpp in Sources */,
+				BB8DD692192D23E500D7B2EB /* slave_recovery_tests.cpp in Sources */,
+				BB8DD671192D237400D7B2EB /* allocator_tests.cpp in Sources */,
+				BB8DD67A192D239E00D7B2EB /* exception_tests.cpp in Sources */,
+				BB8DD673192D237A00D7B2EB /* attributes_tests.cpp in Sources */,
+				BB8DD685192D23BF00D7B2EB /* master_contender_detector_tests.cpp in Sources */,
+				BB8DD67B192D23A000D7B2EB /* fault_tolerance_tests.cpp in Sources */,
+				BB8DD678192D239300D7B2EB /* environment.cpp in Sources */,
+				BB8DD675192D237F00D7B2EB /* cgroups_isolator_tests.cpp in Sources */,
+				BB8DD67E192D23A900D7B2EB /* fs_tests.cpp in Sources */,
+				BB8DD689192D23CD00D7B2EB /* paths_tests.cpp in Sources */,
+				BB8DD698192D240100D7B2EB /* zookeeper.cpp in Sources */,
+				BB8DD674192D237C00D7B2EB /* authentication_tests.cpp in Sources */,
+				BB8DD684192D23BC00D7B2EB /* main.cpp in Sources */,
+				BB8DD68E192D23D900D7B2EB /* resource_offers_tests.cpp in Sources */,
+				BB8DD680192D23B300D7B2EB /* group_tests.cpp in Sources */,
+				BB8DD694192D23EF00D7B2EB /* state_tests.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2827,6 +2928,61 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				EXECUTABLE_PREFIX = lib;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		BB8DD664192D231400D7B2EB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+					"GTEST_USE_OWN_TR1_TUPLE=1",
+					"BUILD_DIR=\\\"$(PROJECT_DIR)/../build\\\"",
+					"SOURCE_DIR=\\\"$(PROJECT_DIR)/../src\\\"",
+				);
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
+					../3rdparty/libprocess/include,
+					../3rdparty/libprocess/3rdparty/stout/include,
+					../include,
+					"../build/3rdparty/zookeeper-3.4.5/src/c/include",
+					"../build/3rdparty/zookeeper-3.4.5/src/c/generated",
+					../build/include,
+					../build/include/mesos,
+					../build/src,
+					"../build/3rdparty/libprocess/3rdparty/picojson-4f93734",
+					/usr/local/include,
+					"../build/3rdparty/libprocess/3rdparty/gmock-1.6.0/include",
+					"../build/3rdparty/libprocess/3rdparty/gmock-1.6.0/gtest/include",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		BB8DD665192D231400D7B2EB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
+					../3rdparty/libprocess/include,
+					../3rdparty/libprocess/3rdparty/stout/include,
+					../include,
+					"../build/3rdparty/zookeeper-3.4.5/src/c/include",
+					"../build/3rdparty/zookeeper-3.4.5/src/c/generated",
+					../build/include,
+					../build/include/mesos,
+					../build/src,
+					"../build/3rdparty/libprocess/3rdparty/picojson-4f93734",
+					/usr/local/include,
+					"../build/3rdparty/libprocess/3rdparty/gmock-1.6.0/include",
+					"../build/3rdparty/libprocess/3rdparty/gmock-1.6.0/gtest/include",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -3322,6 +3478,15 @@
 			buildConfigurations = (
 				BB01F4C518C183C700E64633 /* Debug */,
 				BB01F4C618C183C700E64633 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BB8DD669192D231400D7B2EB /* Build configuration list for PBXNativeTarget "mesos-tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BB8DD664192D231400D7B2EB /* Debug */,
+				BB8DD665192D231400D7B2EB /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
