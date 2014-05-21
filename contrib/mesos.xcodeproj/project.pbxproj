@@ -18,6 +18,7 @@
 				BBB8756118C283FC001F018E /* PBXTargetDependency */,
 				BBB8756318C283FC001F018E /* PBXTargetDependency */,
 				BBB8751118C28062001F018E /* PBXTargetDependency */,
+				BB8DD64E192D21B500D7B2EB /* PBXTargetDependency */,
 				BBB8750D18C28062001F018E /* PBXTargetDependency */,
 				BBB8758218C28517001F018E /* PBXTargetDependency */,
 				BBB8750F18C28062001F018E /* PBXTargetDependency */,
@@ -293,6 +294,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = BBC34B0118C17CF500401037;
 			remoteInfo = build;
+		};
+		BB8DD64D192D21B500D7B2EB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BBF88A8618C13D7300E83221 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BBB8755418C283C4001F018E;
+			remoteInfo = "mesos-log";
 		};
 		BBB8719618C1877F001F018E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -2699,6 +2707,11 @@
 			isa = PBXTargetDependency;
 			target = BBC34B0118C17CF500401037 /* build */;
 			targetProxy = BB01F4B018C17D3F00E64633 /* PBXContainerItemProxy */;
+		};
+		BB8DD64E192D21B500D7B2EB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BBB8755418C283C4001F018E /* mesos-log */;
+			targetProxy = BB8DD64D192D21B500D7B2EB /* PBXContainerItemProxy */;
 		};
 		BBB8719718C1877F001F018E /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
