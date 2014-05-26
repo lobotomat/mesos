@@ -33,12 +33,17 @@
 // ExternalContainerizer-trigger-thunk-MesosContainerizerProcess
 
 #include <stdlib.h>
+#include <signal.h> // For sigaction(), sigemptyset().
+#include <string.h> // For strsignal().
 
 #include <sys/file.h>
 
 #include <iostream>
 #include <fstream>
 #include <string>
+#
+#include <glog/logging.h>
+#include <glog/raw_logging.h>
 
 #include <mesos/mesos.hpp>
 #include <mesos/containerizer/containerizer.hpp>
@@ -81,6 +86,36 @@ using std::string;
 using std::vector;
 
 using lambda::function;
+
+extern "C" void __cxa_pure_virtual()
+{
+  RAW_LOG(FATAL, "Pure virtual method called");
+}
+
+// NOTE: We use RAW_LOG instead of LOG because RAW_LOG doesn't
+// allocate any memory or grab locks. And according to
+// https://code.google.com/p/google-glog/issues/detail?id=161
+// it should work in 'most' cases in signal handlers.
+void handler(int signal)
+{
+  if (signal == SIGTERM) {
+    RAW_LOG(WARNING, "Received signal SIGTERM; exiting.");
+
+    // Setup the default handler for SIGTERM so that we don't print
+    // a stack trace.
+    struct sigaction action;
+    memset(&action, 0, sizeof(action));
+    sigemptyset(&action.sa_mask);
+    action.sa_handler = SIG_DFL;
+    sigaction(signal, &action, NULL);
+    raise(signal);
+  } else if (signal == SIGPIPE) {
+    RAW_LOG(WARNING, "Received signal SIGPIPE; escalating to SIGABRT");
+    raise(SIGABRT);
+  } else {
+    RAW_LOG(FATAL, "Unexpected signal in signal handler: %d", signal);
+  }
+}
 
 
 // Slave configuration specific (MESOS_WORK_DIRECTORY) path getters.
@@ -179,6 +214,8 @@ public:
 protected:
   virtual void initialize()
   {
+    link(containerizer->self());
+
     try {
       std::fstream file(pidPath(directory), std::ios::out);
       file << self();
@@ -223,6 +260,13 @@ protected:
     os::close(pipe.get());
   }
 
+  virtual void exited(const UPID& pid)
+  {
+    if (pid == containerizer->self()) {
+      terminate(this->self());
+    }
+  }
+
   virtual void finalize()
   {
     Try<Nothing> rmPid = os::rm(pidPath(directory));
@@ -263,7 +307,6 @@ private:
     // When no containers are active, shutdown.
     if(containers.empty()) {
       terminate(containerizer->self());
-      terminate(this->self());
       return;
     }
     // Garbage collect forever.
@@ -794,6 +837,39 @@ void usage(const char* argv0, const hashset<string>& commands)
 
 int main(int argc, char** argv)
 {
+  FLAGS_logbufsecs = 0;
+  FLAGS_logtostderr = true;
+  google::InitGoogleLogging(argv[0]);
+
+
+  // Handles SIGSEGV, SIGILL, SIGFPE, SIGABRT, SIGBUS, SIGTERM
+  // by default.
+  //google::InstallFailureSignalHandler();
+
+  // Set up our custom signal handlers.
+  struct sigaction action;
+  action.sa_handler = handler;
+
+  // Do not block additional signals while in the handler.
+  sigemptyset(&action.sa_mask);
+  action.sa_flags = 0;
+
+  // Set up the SIGPIPE signal handler to escalate to SIGABRT
+  // in order to have the glog handler catch it and print all
+  // of its lovely information.
+  if (sigaction(SIGPIPE, &action, NULL) < 0) {
+    PLOG(FATAL) << "Failed to set sigaction";
+  }
+
+  // We also do not want SIGTERM to dump a stacktrace, as this
+  // can imply that we crashed, when we were in fact terminated
+  // by user request.
+  if (sigaction(SIGTERM, &action, NULL) < 0) {
+    PLOG(FATAL) << "Failed to set sigaction";
+  }
+
+
+
   hashmap<string, int(*)(const string&)> methods;
 
   // Daemon setup. Invoked by the test-containerizer itself only.
@@ -818,6 +894,14 @@ int main(int argc, char** argv)
   if (command == "--help" || command == "-h") {
     usage(argv[0], methods.keys());
     exit(0);
+  }
+
+  if (command == "--verbose" || command == "-v") {
+    FLAGS_stderrthreshold = google::INFO;
+    FLAGS_minloglevel = google::INFO;
+  } else {
+    FLAGS_stderrthreshold = 0;
+    FLAGS_minloglevel = 0;
   }
 
   if (!methods.contains(command)) {
