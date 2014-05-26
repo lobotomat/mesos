@@ -61,11 +61,6 @@ using testing::Return;
 using testing::SaveArg;
 using testing::Invoke;
 
-// The external containerizer tests currently rely on a Python script
-// which needs the Mesos Python egg being built.
-// TODO(tillt): Consider providing tests that do not rely on Python.
-#ifdef MESOS_HAS_PYTHON
-
 // TODO(tillt): Update and enhance the ExternalContainerizer tests,
 // possibly following some of the patterns used within the
 // IsolatorTests or even entirely reusing the Containerizer tests.
@@ -122,7 +117,7 @@ public:
 
 
 // This test has been temporarily disabled due to MESOS-1257.
-TEST_F(ExternalContainerizerTest, DISABLED_Launch)
+TEST_F(ExternalContainerizerTest, Launch)
 {
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
@@ -132,8 +127,7 @@ TEST_F(ExternalContainerizerTest, DISABLED_Launch)
   slave::Flags flags = this->CreateSlaveFlags();
 
   flags.isolation = "external";
-  flags.containerizer_path =
-    testFlags.build_dir + "/src/examples/python/test-containerizer";
+  flags.containerizer_path = testFlags.build_dir + "/src/test-containerizer";
 
   MockExternalContainerizer containerizer(flags);
 
@@ -177,15 +171,9 @@ TEST_F(ExternalContainerizerTest, DISABLED_Launch)
   // This task induces user/system load in a child process by
   // running top in a child process for ten seconds.
   task.mutable_command()->set_value(
-#ifdef __APPLE__
-      // Use logging mode with 30,000 samples with no interval.
-      "top -l 30000 -s 0 2>&1 > /dev/null & "
-#else
-      // Batch mode, with 30,000 samples with no interval.
-      "top -b -d 0 -n 30000 2>&1 > /dev/null & "
-#endif
-      "touch " + file +  "; " // Signals that the top command is running.
-      "sleep 60");
+    "while true ; do true ; done &"
+    "touch " + file + "; " // Signals the command is running.
+    "sleep 60");
 
   vector<TaskInfo> tasks;
   tasks.push_back(task);
@@ -231,21 +219,15 @@ TEST_F(ExternalContainerizerTest, DISABLED_Launch)
     // NOTE: We are currently getting dummy-data from the test-
     // containerizer python script matching these expectations.
     // TODO(tillt): Consider working with real data.
-    if (statistics.cpus_user_time_secs() >= 0.120 &&
-        statistics.cpus_system_time_secs() >= 0.05 &&
-        statistics.mem_rss_bytes() >= 1024u) {
+    if (statistics.cpus_user_time_secs() >= 0.125) {
       break;
     }
 
-    os::sleep(Milliseconds(100));
-    waited += Milliseconds(100);
-  } while (waited < Seconds(10));
+    os::sleep(Milliseconds(200));
+    waited += Milliseconds(200);
+  } while (waited < Seconds(1));
 
-  EXPECT_GE(statistics.cpus_user_time_secs(), 0.120);
-  EXPECT_GE(statistics.cpus_system_time_secs(), 0.05);
-  EXPECT_EQ(statistics.cpus_limit(), cpus.get());
-  EXPECT_GE(statistics.mem_rss_bytes(), 1024u);
-  EXPECT_EQ(statistics.mem_limit_bytes(), mem.get().bytes());
+  EXPECT_GE(statistics.cpus_user_time_secs(), 0.125);
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
@@ -261,5 +243,3 @@ TEST_F(ExternalContainerizerTest, DISABLED_Launch)
 
   this->Shutdown();
 }
-
-#endif // MESOS_HAS_PYTHON
