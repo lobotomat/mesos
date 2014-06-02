@@ -61,10 +61,31 @@ you will find an overview on commands and their invocation scheme that
 has to be implemented within an ECP.
 
 
-### COMMAND < INPUT-PROTO > RESULT-PROTO
+### Call and communication scheme
 
-#### Start the containerized executor
-launch < containerizer::Launch
+**COMMAND < INPUT-PROTO > RESULT-PROTO**
+
+* launch < containerizer::Launch
+* update < containerizer::Update
+* usage < containerizer::Usage > mesos::ResourceStatistics
+* wait < containerizer::Wait > containerizer::Termination
+* destroy < containerizer::Destroy
+* containers > containerizer::Containers
+* recover
+
+
+
+# Command Details
+
+## launch
+### Start the containerized executor
+Hands over all information the ECP needs for launching a task
+via an executor.
+This call should not wait for the executor / command to return. The
+actual reaping of the containerized command is done via the `wait`
+call.
+
+`launch < containerizer::Launch`
 
 This call receives the containerizer::Launch protobuf via stdin;
 
@@ -85,8 +106,50 @@ This call receives the containerizer::Launch protobuf via stdin;
 
 This call does not return any data via stdout.
 
-#### Update the container's resources
-update < containerizer::Update
+## wait
+### Gets information on the containerized executor's Termination
+Is expected to reap the executor / command. This call should block
+until the executor/command has terminated.
+
+`wait < containerizer::Wait > containerizer::Termination`
+
+This call receives the containerizer::Wait protobuf via stdin;
+
+    /**
+     * Encodes the wait command sent to the external containerizer
+     * program.
+     */
+    message Wait {
+      required ContainerID container_id = 1;
+    }
+
+This call is expected to return containerizer::Termination via stdout;
+
+    /**
+     * Information about a container termination, returned by the
+     * containerizer to the slave.
+     */
+    message Termination {
+      // A container may be killed if it exceeds its resources; this will
+      // be indicated by killed=true and described by the message string.
+      required bool killed = 1;
+      required string message = 2;
+
+      // Exit status of the process.
+      optional int32 status = 3;
+    }
+
+The Termination attribute `killed` is to be set only when the
+containerizer or the underlying isolation had to enforce a limitation
+by killing the task (e.g. task exceeded suggested memory limit).
+
+## update
+### Updates the container's resource limits
+Is sending (new) resource constraints for the given container.
+Resource constraints onto a container may vary over the lifetime of
+the containerized task.
+
+`update < containerizer::Update`
 
 This call receives the containerizer::Update protobuf via stdin;
 
@@ -101,8 +164,11 @@ This call receives the containerizer::Update protobuf via stdin;
 
 This call does not return any data via stdout.
 
-#### Gather resource usage statistics for the containerized executor
-usage < containerizer::Usage > mesos::ResourceStatistics
+## usage
+### Gathers resource usage statistics for a containerized task
+Is used for polling the current resource uses for the given container.
+
+`usage < containerizer::Usage > mesos::ResourceStatistics`
 
 This call received the containerizer::Usage protobuf via stdin;
 
@@ -147,37 +213,12 @@ This call is expected to return mesos::ResourceStatistics via stdout;
       optional uint64 mem_mapped_file_bytes = 12;
     }
 
-#### Get information on the containerized executor's Termination
-wait < containerizer::Wait > containerizer::Termination
+## destroy
+### Terminates the containerized executor
+Is used in rare situations, like for graceful slave shutdown
+but also in slave failover scenarios - see Slave Recovery for more.
 
-This call receives the containerizer::Wait protobuf via stdin;
-
-    /**
-     * Encodes the wait command sent to the external containerizer
-     * program.
-     */
-    message Wait {
-      required ContainerID container_id = 1;
-    }
-
-This call is expected to return containerizer::Termination via stdout;
-
-    /**
-     * Information about a container termination, returned by the
-     * containerizer to the slave.
-     */
-    message Termination {
-      // A container may be killed if it exceeds its resources; this will
-      // be indicated by killed=true and described by the message string.
-      required bool killed = 1;
-      required string message = 2;
-
-      // Exit status of the process.
-      optional int32 status = 3;
-    }
-
-#### Terminate the containerized executor
-destroy < containerizer::Destroy
+`destroy < containerizer::Destroy`
 
 This call receives the containerizer::Destroy protobuf via stdin;
 
@@ -191,8 +232,11 @@ This call receives the containerizer::Destroy protobuf via stdin;
 
 This call does not return any data via stdout.
 
-#### Get all active container-id's
-containers > containerizer::Containers
+## containers
+### Gets all active container-id's
+Returns all container identifiers known to be currently active.
+
+`containers > containerizer::Containers`
 
 This call does not receive any additional data via stdin.
 
@@ -207,15 +251,21 @@ This call is expected to pass containerizer::Containers back via stdout;
     }
 
 
-#### Recover internal ECP state
-recover
+## recover
+### Internal ECP state recovery
+Allows the ECP to do a state recovery on its own. If the ECP
+uses state checkpointing e.g. via filesystem, then this call would be
+a good moment to deserialize that state information. Make sure you
+also see Slave Recovery below for more.
+
+`recover`
 
 This call does not receive any additional data via stdin.
 No returned data via stdout.
 
 
 
-## Protobuf Message Definitions
+### Protobuf Message Definitions
 
 For possibly more up-to-date versions of the above mentioned protobufs
 as well as protobuf messages referenced by them, please check:
