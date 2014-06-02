@@ -19,7 +19,7 @@ EC invokes ECP as a shell process, passing the command as a parameter
 to the ECP executable. Many invocations on the ECP will also pass a
 protobuf message along via stdin. Some invocations on the ECP also
 expect to deliver a result protobuf message back via stdout.
-All protobuf messages are prepended by their original length -
+All protobuf messages are prefixed by their original length -
 this is sometimes referred to as “Record-IO”-format.
 
 Record-IO: `<32bit int = length><binary protobuf data>`
@@ -216,7 +216,7 @@ This call is expected to return mesos::ResourceStatistics via stdout;
 ## destroy
 ### Terminates the containerized executor
 Is used in rare situations, like for graceful slave shutdown
-but also in slave failover scenarios - see Slave Recovery for more.
+but also in slave fail over scenarios - see Slave Recovery for more.
 
 `destroy < containerizer::Destroy`
 
@@ -254,8 +254,8 @@ This call is expected to pass containerizer::Containers back via stdout;
 ## recover
 ### Internal ECP state recovery
 Allows the ECP to do a state recovery on its own. If the ECP
-uses state checkpointing e.g. via filesystem, then this call would be
-a good moment to deserialize that state information. Make sure you
+uses state check-pointing e.g. via file system, then this call would be
+a good moment to de-serialize that state information. Make sure you
 also see Slave Recovery below for more.
 
 `recover`
@@ -283,7 +283,7 @@ invoking the ECP.
 * MESOS_LIBEXEC_DIRECTORY = path to mesos-executor, mesos-usage, ...
 
 * MESOS_WORK_DIRECTORY = slave work directory. This should be used for
-distiguishing slave instances.
+distinguishing slave instances.
 
 **Note** that this is specifically helpful for being able to tie a set
 of containers to a specific slave instance, thus allowing proper
