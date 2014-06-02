@@ -22,6 +22,7 @@ layout: documentation
 * [Mesos Architecture](mesos-architecture.md) providing an overview of Mesos concepts.
 * [Javadoc](/api/latest/java/) documents the Mesos Java API.
 * [Developer Tools](tools.md) for hacking on Mesos or writing frameworks.
+* [External Containerizer](external-containerizer.md) documents the external containerizer API Mesos provides.
 
 ## Contributing to Mesos
 

@@ -20,40 +20,8 @@ to the ECP executable. Many invocations on the ECP will also pass a
 protobuf message along via stdin. Some invocations on the ECP also
 expect to deliver a result protobuf message back via stdout.
 All protobuf messages are prefixed by their original length -
-this is sometimes referred to as “Record-IO”-format.
-
-Record-IO: `<32bit int = length><binary protobuf data>`
-
-Here comes a quick example on how to send and receive such record-io
-formatted message using Python
-(taken from src/examples/python/test_containerizer.py):
-
-    # Read a data chunk prefixed by its total size from stdin.
-    def receive():
-        # Read size (uint32 => 4 bytes).
-        size = struct.unpack('I', sys.stdin.read(4))
-        if size[0] <= 0:
-            print >> sys.stderr, "Expected protobuf size over stdin. " \
-                             "Received 0 bytes."
-            return ""
-
-        # Read payload.
-        data = sys.stdin.read(size[0])
-        if len(data) != size[0]:
-            print >> sys.stderr, "Expected %d bytes protobuf over stdin. " \
-                             "Received %d bytes." % (size[0], len(data))
-            return ""
-
-        return data`
-
-    # Write a protobuf message prefixed by its total size (aka recordio)
-    # to stdout.
-    def send(data):
-        # Write size (uint32 => 4 bytes).
-        sys.stdout.write(struct.pack('I', len(data)))
-
-        # Write payload.
-        sys.stdout.write(data)`
+this is sometimes referred to as “Record-IO”-format. See
+[Python Example Code](Appendix A - Record-IO for example code).
 
 The ECP is expected to return a zero exit code for all commands it
 was able to process. A non zero status code signals an error. Below
@@ -322,10 +290,10 @@ via fork-exec within the ECP.
 * Slave recovers via check pointed state.
 * EC invokes ‘recover’ on the ECP - there is no protobuf message sent
 or expected as a result from this command.
-* The ECP may try to recover internal states via its own failover
+ * The ECP may try to recover internal states via its own failover
 mechanisms, if needed.
 * After ‘recover’ returns, the EC will invoke ‘containers’ on the ECP.
-* The ECP should return Containers which is a list of currently active
+ * The ECP should return Containers which is a list of currently active
 containers.
 **Note** these containers are known to the ECP but might in fact
 partially be unknown to the slave (e.g. slave failed after launch but
@@ -338,3 +306,80 @@ containers.
 * Slave will now call ‘wait’ on the ECP (via EC) for all recovered
 containers. This does once again put ‘wait' into the position of the
 ultimate command reaper.
+
+# Appendix
+
+## Record-IO Proto Example: Launch
+
+This is what a properly record-io formatted protobuf looks like. 
+
+**name:    offset**
+
+* length: 0x00 - 0x03 = record length in byte
+
+* payload: 0x04 - (Length + 4) = protobuf payload
+
+Example Length: 0x0240 = 576 byte total protobuf size
+
+Example Hexdump:
+
+    00000000:  4002 0000 0a26 0a24 3433 3532 3533 6162 2d64 3234 362d 3437  :@....&.$435253ab-d246-47
+    00000018:  6265 2d61 3335 302d 3335 3432 3034 3635 6438 3638 1a81 020a  :be-a350-35420465d868....
+    00000030:  030a 0131 2a16 0a04 6370 7573 1000 1a09 0900 0000 0000 0000  :...1*...cpus............
+    00000048:  4032 012a 2a15 0a03 6d65 6d10 001a 0909 0000 0000 0000 9040  :@2.**...mem............@
+    00000060:  3201 2a2a 160a 0464 6973 6b10 001a 0909 0000 0000 0000 9040  :2.**...disk............@
+    00000078:  3201 2a2a 180a 0570 6f72 7473 1001 220a 0a08 0898 f201 1080  :2.**...ports..".........
+    00000090:  fa01 3201 2a3a 2a1a 2865 6368 6f20 274e 6f20 7375 6368 2066  :..2.*:*.(echo 'No such f
+    000000a8:  696c 6520 6f72 2064 6972 6563 746f 7279 273b 2065 7869 7420  :ile or directory'; exit 
+    000000c0:  3142 2b0a 2932 3031 3430 3532 362d 3031 3530 3036 2d31 3637  :1B+.)20140526-015006-167
+    000000d8:  3737 3334 332d 3535 3430 332d 3632 3536 372d 3030 3030 4a3d  :77343-55403-62567-0000J=
+    000000f0:  436f 6d6d 616e 6420 4578 6563 7574 6f72 2028 5461 736b 3a20  :Command Executor (Task: 
+    00000108:  3129 2028 436f 6d6d 616e 643a 2073 6820 2d63 2027 7768 696c  :1) (Command: sh -c 'whil
+    00000120:  6520 7472 7565 203b 2e2e 2e27 2952 0131 22c5 012f 746d 702f  :e true ;...')R.1"../tmp/
+    00000138:  4578 7465 726e 616c 436f 6e74 6169 6e65 7269 7a65 7254 6573  :ExternalContainerizerTes
+    00000150:  745f 4c61 756e 6368 5f6c 5855 6839 662f 736c 6176 6573 2f32  :t_Launch_lXUh9f/slaves/2
+    00000168:  3031 3430 3532 362d 3031 3530 3036 2d31 3637 3737 3334 332d  :0140526-015006-16777343-
+    00000180:  3535 3430 332d 3632 3536 372d 302f 6672 616d 6577 6f72 6b73  :55403-62567-0/frameworks
+    00000198:  2f32 3031 3430 3532 362d 3031 3530 3036 2d31 3637 3737 3334  :/20140526-015006-1677734
+    000001b0:  332d 3535 3430 332d 3632 3536 372d 3030 3030 2f65 7865 6375  :3-55403-62567-0000/execu
+    000001c8:  746f 7273 2f31 2f72 756e 732f 3433 3532 3533 6162 2d64 3234  :tors/1/runs/435253ab-d24
+    000001e0:  362d 3437 6265 2d61 3335 302d 3335 3432 3034 3635 6438 3638  :6-47be-a350-35420465d868
+    000001f8:  2a04 7469 6c6c 3228 0a26 3230 3134 3035 3236 2d30 3135 3030  :*.till2(.&20140526-01500
+    00000210:  362d 3136 3737 3733 3433 2d35 3534 3033 2d36 3235 3637 2d30  :6-16777343-55403-62567-0
+    00000228:  3a18 736c 6176 6528 3129 4031 3237 2e30 2e30 2e31 3a35 3534  ::.slave(1)@127.0.0.1:554
+    00000240:  3033 4000  
+
+## Record-IO De/Serializing Example
+How to send and receive such record-io formatted message
+using Python
+
+*taken from src/examples/python/test_containerizer.py*
+
+    # Read a data chunk prefixed by its total size from stdin.
+    def receive():
+        # Read size (uint32 => 4 bytes).
+        size = struct.unpack('I', sys.stdin.read(4))
+        if size[0] <= 0:
+            print >> sys.stderr, "Expected protobuf size over stdin. " \
+                             "Received 0 bytes."
+            return ""
+
+        # Read payload.
+        data = sys.stdin.read(size[0])
+        if len(data) != size[0]:
+            print >> sys.stderr, "Expected %d bytes protobuf over stdin. " \
+                             "Received %d bytes." % (size[0], len(data))
+            return ""
+
+        return data`
+
+    # Write a protobuf message prefixed by its total size (aka recordio)
+    # to stdout.
+    def send(data):
+        # Write size (uint32 => 4 bytes).
+        sys.stdout.write(struct.pack('I', len(data)))
+
+        # Write payload.
+        sys.stdout.write(data)`
+
+
