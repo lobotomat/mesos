@@ -7,10 +7,10 @@ layout: documentation
 
 First some abbreviations used throughout this document:
 
-EC = ExternalContainerizer = part of mesos that provides an API for
+EC = external containerizer = part of mesos that provides an API for
 containerizing via external plugin executables.
-ECP = ExternalContainerizer = external plugin executable implementing
-the actual containerizing.
+ECP = external containerizer program = external plugin executable
+implementing the actual containerizing.
 
 
 # General Overview
