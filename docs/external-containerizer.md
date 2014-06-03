@@ -21,16 +21,16 @@ protobuf message along via stdin. Some invocations on the ECP also
 expect to deliver a result protobuf message back via stdout.
 All protobuf messages are prefixed by their original length -
 this is sometimes referred to as “Record-IO”-format. See
-[Record-IO De/Serializing Example](Record-IO De/Serializing Example).
+[Record-IO De/Serializing Example](#record-iodeserializingexample).
 
-The ECP is expected to return a zero exit code for all commands it was able to
-process. A non-zero status code signals an error. Below you will find an
-overview of the commands that have to be implemented by an ECP, as well as
-their invocation scheme.
+The ECP is expected to return a zero exit code for all commands it was
+able to process. A non-zero status code signals an error. Below you
+will find an overview of the commands that have to be implemented by
+an ECP, as well as their invocation scheme.
 
 The ECP is expected to be using stderr for logging and displaying
 additional debug information. That information is getting logged, see
-[Enviroment: **Sandbox**](#**Sandbox**).
+[Enviroment: **Sandbox**](#sandbox).
 
 
 
@@ -55,7 +55,7 @@ Commands may pretty much come in any order. There is only one
 exception to this rule; when launching a task, the EC will make sure
 that the ECP first receives a `launch` on that specific container, all
 other commands are queued until `launch` returns from the ECP.
-There are some more [Example Scenarios](#Example Scenarios) drafted
+There are some more [Example Scenarios](#examplescenarios) drafted
 further down.
 
 
