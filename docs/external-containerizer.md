@@ -23,23 +23,23 @@ All protobuf messages are prefixed by their original length -
 this is sometimes referred to as “Record-IO”-format. See
 [Python Example Code](Appendix A - Record-IO for example code).
 
-The ECP is expected to return a zero exit code for all commands it
-was able to process. A non zero status code signals an error. Below
-you will find an overview on commands and their invocation scheme that
-has to be implemented within an ECP.
+The ECP is expected to return a zero exit code for all commands it was able to
+process. A non-zero status code signals an error. Below you will find an
+overview of the commands that have to be implemented by an ECP, as well as
+their invocation scheme.
 
 
 ### Call and communication scheme
 
 **COMMAND < INPUT-PROTO > RESULT-PROTO**
 
-* launch < containerizer::Launch
-* update < containerizer::Update
-* usage < containerizer::Usage > mesos::ResourceStatistics
-* wait < containerizer::Wait > containerizer::Termination
-* destroy < containerizer::Destroy
-* containers > containerizer::Containers
-* recover
+* `launch < containerizer::Launch`
+* `update < containerizer::Update`
+* `usage < containerizer::Usage > mesos::ResourceStatistics`
+* `wait < containerizer::Wait > containerizer::Termination`
+* `destroy < containerizer::Destroy`
+* `containers > containerizer::Containers`
+* `recover`
 
 
 
@@ -47,15 +47,16 @@ has to be implemented within an ECP.
 
 ## launch
 ### Start the containerized executor
+
 Hands over all information the ECP needs for launching a task
 via an executor.
-This call should not wait for the executor / command to return. The
+This call should not wait for the executor/command to return. The
 actual reaping of the containerized command is done via the `wait`
 call.
 
-`launch < containerizer::Launch`
+    launch < containerizer::Launch
 
-This call receives the containerizer::Launch protobuf via stdin;
+This call receives the containerizer::Launch protobuf via stdin.
 
     /**
      * Encodes the launch command sent to the external containerizer
@@ -76,12 +77,13 @@ This call does not return any data via stdout.
 
 ## wait
 ### Gets information on the containerized executor's Termination
-Is expected to reap the executor / command. This call should block
+
+Is expected to reap the executor/command. This call should block
 until the executor/command has terminated.
 
-`wait < containerizer::Wait > containerizer::Termination`
+    wait < containerizer::Wait > containerizer::Termination
 
-This call receives the containerizer::Wait protobuf via stdin;
+This call receives the containerizer::Wait protobuf via stdin.
 
     /**
      * Encodes the wait command sent to the external containerizer
@@ -91,7 +93,7 @@ This call receives the containerizer::Wait protobuf via stdin;
       required ContainerID container_id = 1;
     }
 
-This call is expected to return containerizer::Termination via stdout;
+This call is expected to return containerizer::Termination via stdout.
 
     /**
      * Information about a container termination, returned by the
@@ -113,13 +115,14 @@ by killing the task (e.g. task exceeded suggested memory limit).
 
 ## update
 ### Updates the container's resource limits
+
 Is sending (new) resource constraints for the given container.
 Resource constraints onto a container may vary over the lifetime of
 the containerized task.
 
-`update < containerizer::Update`
+    update < containerizer::Update
 
-This call receives the containerizer::Update protobuf via stdin;
+This call receives the containerizer::Update protobuf via stdin.
 
     /**
      * Encodes the update command sent to the external containerizer
@@ -136,9 +139,9 @@ This call does not return any data via stdout.
 ### Gathers resource usage statistics for a containerized task
 Is used for polling the current resource uses for the given container.
 
-`usage < containerizer::Usage > mesos::ResourceStatistics`
+    usage < containerizer::Usage > mesos::ResourceStatistics
 
-This call received the containerizer::Usage protobuf via stdin;
+This call received the containerizer::Usage protobuf via stdin.
 
     /**
      * Encodes the usage command sent to the external containerizer
@@ -148,7 +151,7 @@ This call received the containerizer::Usage protobuf via stdin;
       required ContainerID container_id = 1;
     }
 
-This call is expected to return mesos::ResourceStatistics via stdout;
+This call is expected to return mesos::ResourceStatistics via stdout.
 
     /*
      * A snapshot of resource usage statistics.
@@ -183,12 +186,13 @@ This call is expected to return mesos::ResourceStatistics via stdout;
 
 ## destroy
 ### Terminates the containerized executor
+
 Is used in rare situations, like for graceful slave shutdown
 but also in slave fail over scenarios - see Slave Recovery for more.
 
-`destroy < containerizer::Destroy`
+    destroy < containerizer::Destroy
 
-This call receives the containerizer::Destroy protobuf via stdin;
+This call receives the containerizer::Destroy protobuf via stdin.
 
     /**
      * Encodes the destroy command sent to the external containerizer
@@ -202,13 +206,14 @@ This call does not return any data via stdout.
 
 ## containers
 ### Gets all active container-id's
+
 Returns all container identifiers known to be currently active.
 
-`containers > containerizer::Containers`
+    containers > containerizer::Containers
 
 This call does not receive any additional data via stdin.
 
-This call is expected to pass containerizer::Containers back via stdout;
+This call is expected to pass containerizer::Containers back via stdout.
 
     /**
      * Information on all active containers returned by the containerizer
@@ -221,12 +226,13 @@ This call is expected to pass containerizer::Containers back via stdout;
 
 ## recover
 ### Internal ECP state recovery
+
 Allows the ECP to do a state recovery on its own. If the ECP
 uses state check-pointing e.g. via file system, then this call would be
 a good moment to de-serialize that state information. Make sure you
 also see Slave Recovery below for more.
 
-`recover`
+    recover
 
 This call does not receive any additional data via stdin.
 No returned data via stdout.
@@ -237,9 +243,11 @@ No returned data via stdout.
 
 For possibly more up-to-date versions of the above mentioned protobufs
 as well as protobuf messages referenced by them, please check:
-containerizer::XXX are defined within
-include/mesos/containerizer/containerizer.proto.
-mesos::XXX are defined within include/mesos/mesos.proto.
+
+* containerizer::XXX are defined within
+  include/mesos/containerizer/containerizer.proto.
+
+* mesos::XXX are defined within include/mesos/mesos.proto.
 
 
 ## Addional Environment Variables
@@ -259,7 +267,7 @@ recovery when needed.
 
 * MESOS_DEFAULT_CONTAINER_IMAGE = default image as provided via slave
 flags (default_container_image). This variable is provided only in
-calls to 'launch'.
+calls to `launch`.
 
 
 
@@ -268,14 +276,14 @@ calls to 'launch'.
 
 # Task Launching
 
-* EC invokes ‘launch’ on the ECP.
+* EC invokes `launch` on the ECP.
  * Along with that call, the ECP will receive a containerizer::Launch
  protobuf message via stdin.
  * ECP now makes sure the executor gets started.
-**Note** that ‘launch’ is not supposed to block. It should return
+**Note** that `launch` is not supposed to block. It should return
 immediately after triggering the executor/command - that could be done
 via fork-exec within the ECP.
-* EC invokes ‘wait' on the ECP.
+* EC invokes `wait` on the ECP.
  * Along with that call, the ECP will receive a containerizer::Wait
  protobuf message via stdin.
  * ECP now blocks until the launched command is reaped - that could be
@@ -288,11 +296,11 @@ via fork-exec within the ECP.
 # Slave Recovery
 
 * Slave recovers via check pointed state.
-* EC invokes ‘recover’ on the ECP - there is no protobuf message sent
+* EC invokes `recover` on the ECP - there is no protobuf message sent
 or expected as a result from this command.
  * The ECP may try to recover internal states via its own failover
 mechanisms, if needed.
-* After ‘recover’ returns, the EC will invoke ‘containers’ on the ECP.
+* After `recover` returns, the EC will invoke `containers` on the ECP.
  * The ECP should return Containers which is a list of currently active
 containers.
 **Note** these containers are known to the ECP but might in fact
@@ -300,10 +308,10 @@ partially be unknown to the slave (e.g. slave failed after launch but
 before or within wait) - those containers are considered to be
 orphans.
 * The EC now compares the list of slave known containers to those
-listed within ‘Containers’. For each orphan it identifies, the slave
-will invoke a ‘wait” followed by a ‘destroy’ on the ECP for those
+listed within `Containers`. For each orphan it identifies, the slave
+will invoke a `wait` followed by a `destroy` on the ECP for those
 containers.
-* Slave will now call ‘wait’ on the ECP (via EC) for all recovered
+* Slave will now call `wait` on the ECP (via EC) for all recovered
 containers. This does once again put ‘wait' into the position of the
 ultimate command reaper.
 
@@ -371,7 +379,7 @@ using Python
                              "Received %d bytes." % (size[0], len(data))
             return ""
 
-        return data`
+        return data
 
     # Write a protobuf message prefixed by its total size (aka recordio)
     # to stdout.
@@ -380,6 +388,6 @@ using Python
         sys.stdout.write(struct.pack('I', len(data)))
 
         # Write payload.
-        sys.stdout.write(data)`
+        sys.stdout.write(data)
 
 
