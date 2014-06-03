@@ -28,6 +28,12 @@ process. A non-zero status code signals an error. Below you will find an
 overview of the commands that have to be implemented by an ECP, as well as
 their invocation scheme.
 
+The ECP is expected to be using stderr for logging and displaying
+additional debug information. That information is getting logged, see
+[Enviroment: **Sandbox**](#**Sandbox**).
+
+
+
 
 ### Call and communication scheme
 
@@ -260,17 +266,18 @@ as well as protobuf messages referenced by them, please check:
 * mesos::XXX are defined within include/mesos/mesos.proto.
 
 
-## Invocation **Sandbox**
-Most invocations usually have a specific environment.
+
+# Environment
+
+## **Sandbox**
+
+A sandbox environment is formed by `cd` into the work-directory of the
+executor as well as a stderr redirect into the executor's "stderr"
+log-file.
 **Note** not **all** invocations have a complete sandbox environment.
-The EC does assume that the ECP is using stderr for logging and
-additional debug information.
-The output of the ECP's stderr pipe is redirected into executor stderr
-log. The current path when invoking the ECP is set towards the default
-executors' work path.
 
 
-### Addional Environment Variables
+## Addional Environment Variables
 
 Additionally, there are a few new environment variables set when
 invoking the ECP.
@@ -293,11 +300,10 @@ calls to `launch`.
 
 
 
+# Example Scenarios
 
-## Example Scenarios
 
-
-# Task Launching
+## Task Launching
 
 * EC invokes `launch` on the ECP.
  * Along with that call, the ECP will receive a containerizer::Launch
@@ -316,7 +322,7 @@ via fork-exec within the ECP.
  EC.
 
 
-# Slave Recovery
+## Slave Recovery
 
 * Slave recovers via check pointed state.
 * EC invokes `recover` on the ECP - there is no protobuf message sent
@@ -338,6 +344,8 @@ containers.
 containers. This does once again put ‘wait' into the position of the
 ultimate command reaper.
 
+
+
 # Appendix
 
 ## Record-IO Proto Example: Launch
@@ -346,11 +354,11 @@ This is what a properly record-io formatted protobuf looks like.
 
 **name:    offset**
 
-* length: 0x00 - 0x03 = record length in byte
+* length: 00 - 03 = record length in byte
 
-* payload: 0x04 - (length + 4) = protobuf payload
+* payload: 04 - (length + 4) = protobuf payload
 
-Example length: 0x0240 = 576 byte total protobuf size
+Example length: 00000240h = 576 byte total protobuf size
 
 Example Hexdump:
 
