@@ -21,7 +21,7 @@ protobuf message along via stdin. Some invocations on the ECP also
 expect to deliver a result protobuf message back via stdout.
 All protobuf messages are prefixed by their original length -
 this is sometimes referred to as “Record-IO”-format. See
-[Python Example Code](Appendix A - Record-IO for example code).
+[Record-IO De/Serializing Example](Record-IO De/Serializing Example).
 
 The ECP is expected to return a zero exit code for all commands it was able to
 process. A non-zero status code signals an error. Below you will find an
@@ -41,6 +41,16 @@ their invocation scheme.
 * `containers > containerizer::Containers`
 * `recover`
 
+
+# Command Ordering
+
+## Make no assumptions
+Commands may pretty much come in any order. There is only one
+exception to this rule; when launching a task, the EC will make sure
+that the ECP first receives a `launch` on that specific container, all
+other commands are queued until `launch` returns from the ECP.
+There are some more [Example Scenarios](#Example Scenarios) drafted
+further down.
 
 
 # Command Details
@@ -250,16 +260,28 @@ as well as protobuf messages referenced by them, please check:
 * mesos::XXX are defined within include/mesos/mesos.proto.
 
 
-## Addional Environment Variables
+## Invocation **Sandbox**
+Most invocations usually have a specific environment.
+**Note** not **all** invocations have a complete sandbox environment.
+The EC does assume that the ECP is using stderr for logging and
+additional debug information.
+The output of the ECP's stderr pipe is redirected into executor stderr
+log. The current path when invoking the ECP is set towards the default
+executors' work path.
+
+
+### Addional Environment Variables
 
 Additionally, there are a few new environment variables set when
 invoking the ECP.
 
 
 * MESOS_LIBEXEC_DIRECTORY = path to mesos-executor, mesos-usage, ...
+This information is always present.
 
 * MESOS_WORK_DIRECTORY = slave work directory. This should be used for
 distinguishing slave instances.
+This information is always present.
 
 **Note** that this is specifically helpful for being able to tie a set
 of containers to a specific slave instance, thus allowing proper
@@ -268,6 +290,7 @@ recovery when needed.
 * MESOS_DEFAULT_CONTAINER_IMAGE = default image as provided via slave
 flags (default_container_image). This variable is provided only in
 calls to `launch`.
+
 
 
 
@@ -325,9 +348,9 @@ This is what a properly record-io formatted protobuf looks like.
 
 * length: 0x00 - 0x03 = record length in byte
 
-* payload: 0x04 - (Length + 4) = protobuf payload
+* payload: 0x04 - (length + 4) = protobuf payload
 
-Example Length: 0x0240 = 576 byte total protobuf size
+Example length: 0x0240 = 576 byte total protobuf size
 
 Example Hexdump:
 
