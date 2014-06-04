@@ -9,8 +9,6 @@ seqdiag {
 
     EC; ECP; executor; command;
 
-    EC -> ECP [label = "wait", leftnote = "wait < containerizer::Wait"];
-        ECP ->> executor [label = "reap", leftnote = "wait on persisted pid"];
     EC -> ECP [label = "update", leftnote = "update < containerizer::Update"];
         ECP -> ECP [label = "set\ncontainer\nresource\nlimitations"];
     EC  <-- ECP [label = "update"];
