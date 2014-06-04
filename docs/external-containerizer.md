@@ -59,6 +59,57 @@ There are some more [Example Scenarios](#examplescenarios) drafted
 further down.
 
 
+# Use Cases
+
+## Command Lifecycle Sequence Diagram
+
+![Command Lifecycle Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-launch-seqdiag.png?raw=true)
+
+
+## Task Launching Details
+
+* EC invokes `launch` on the ECP.
+ * Along with that call, the ECP will receive a containerizer::Launch
+ protobuf message via stdin.
+ * ECP now makes sure the executor gets started.
+**Note** that `launch` is not supposed to block. It should return
+immediately after triggering the executor/command - that could be done
+via fork-exec within the ECP.
+* EC invokes `wait` on the ECP.
+ * Along with that call, the ECP will receive a containerizer::Wait
+ protobuf message via stdin.
+ * ECP now blocks until the launched command is reaped - that could be
+ implemented via waitpid within the ECP.
+ * Once the command is reaped, the ECP should deliver a
+ containerizer::Termination protobuf message via stdout, back to the
+ EC.
+
+
+## Slave Recovery Details
+
+* Slave recovers via check pointed state.
+* EC invokes `recover` on the ECP - there is no protobuf message sent
+or expected as a result from this command.
+ * The ECP may try to recover internal states via its own failover
+mechanisms, if needed.
+* After `recover` returns, the EC will invoke `containers` on the ECP.
+ * The ECP should return Containers which is a list of currently active
+containers.
+**Note** these containers are known to the ECP but might in fact
+partially be unknown to the slave (e.g. slave failed after launch but
+before or within wait) - those containers are considered to be
+orphans.
+* The EC now compares the list of slave known containers to those
+listed within `Containers`. For each orphan it identifies, the slave
+will invoke a `wait` followed by a `destroy` on the ECP for those
+containers.
+* Slave will now call `wait` on the ECP (via EC) for all recovered
+containers. This does once again put ‘wait' into the position of the
+ultimate command reaper.
+
+
+
+
 # Command Details
 
 ## launch
@@ -297,55 +348,6 @@ recovery when needed.
 * MESOS_DEFAULT_CONTAINER_IMAGE = default image as provided via slave
 flags (default_container_image). This variable is provided only in
 calls to `launch`.
-
-
-# Use Cases
-
-## Command Lifecycle Sequence Diagram
-
-![Command Lifecycle Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-launch-seqdiag.png?raw=true)
-
-
-## Task Launching Details
-
-* EC invokes `launch` on the ECP.
- * Along with that call, the ECP will receive a containerizer::Launch
- protobuf message via stdin.
- * ECP now makes sure the executor gets started.
-**Note** that `launch` is not supposed to block. It should return
-immediately after triggering the executor/command - that could be done
-via fork-exec within the ECP.
-* EC invokes `wait` on the ECP.
- * Along with that call, the ECP will receive a containerizer::Wait
- protobuf message via stdin.
- * ECP now blocks until the launched command is reaped - that could be
- implemented via waitpid within the ECP.
- * Once the command is reaped, the ECP should deliver a
- containerizer::Termination protobuf message via stdout, back to the
- EC.
-
-
-## Slave Recovery Details
-
-* Slave recovers via check pointed state.
-* EC invokes `recover` on the ECP - there is no protobuf message sent
-or expected as a result from this command.
- * The ECP may try to recover internal states via its own failover
-mechanisms, if needed.
-* After `recover` returns, the EC will invoke `containers` on the ECP.
- * The ECP should return Containers which is a list of currently active
-containers.
-**Note** these containers are known to the ECP but might in fact
-partially be unknown to the slave (e.g. slave failed after launch but
-before or within wait) - those containers are considered to be
-orphans.
-* The EC now compares the list of slave known containers to those
-listed within `Containers`. For each orphan it identifies, the slave
-will invoke a `wait` followed by a `destroy` on the ECP for those
-containers.
-* Slave will now call `wait` on the ECP (via EC) for all recovered
-containers. This does once again put ‘wait' into the position of the
-ultimate command reaper.
 
 
 # Appendix
