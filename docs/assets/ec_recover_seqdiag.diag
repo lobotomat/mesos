@@ -28,7 +28,7 @@ seqdiag {
         EC -> ECP [label = "wait", leftnote = "wait < containerizer::Wait"];
             ECP ->> executor [label = "reap", leftnote = "wait on persisted pid"];
 
- === Command Lifecycle ===
+ === Task Running ===
 
                 executor <<-- command [label = "execute", rightnote = "command exits"];
             ECP <<- executor [label = "reap", leftnote = "pid status"];

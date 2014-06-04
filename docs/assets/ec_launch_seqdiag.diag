@@ -13,6 +13,8 @@ seqdiag {
         ECP ->> executor [label = "execute", leftnote = "fork exec,\npersist pid"];
     EC <-- ECP [label = "launch"];
             executor ->> command [label = "execute", rightnote = "command starts"];
+    EC -> ECP [label = "wait", leftnote = "wait < containerizer::Wait"];
+        ECP ->> executor [label = "reap", leftnote = "wait on persisted pid"];
 
  === Task Running ===
 
