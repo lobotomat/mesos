@@ -61,11 +61,6 @@ further down.
 
 # Use Cases
 
-## Command Lifecycle Sequence Diagram
-
-![Command Lifecycle Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-launch-seqdiag.png?raw=true)
-
-
 ## Task Launching Overview
 
 * EC invokes `launch` on the ECP.
@@ -85,9 +80,9 @@ via fork-exec within the ECP.
  EC.
 
 
-## Recovery Sequence Diagram
+## Command Lifecycle Sequence Diagram
 
-![Recovery Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-recover-seqdiag.png?raw=true)
+![Command Lifecycle Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-launch-seqdiag.png?raw=true)
 
 
 ## Slave Recovery Overview
@@ -112,6 +107,10 @@ containers.
 containers. This does once again put ‘wait' into the position of the
 ultimate command reaper.
 
+
+## Recovery Sequence Diagram
+
+![Recovery Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-recover-seqdiag.png?raw=true)
 
 
 
