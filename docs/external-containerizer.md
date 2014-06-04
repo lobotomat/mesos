@@ -55,8 +55,6 @@ Commands may pretty much come in any order. There is only one
 exception to this rule; when launching a task, the EC will make sure
 that the ECP first receives a `launch` on that specific container, all
 other commands are queued until `launch` returns from the ECP.
-There are some more [Example Scenarios](#examplescenarios) drafted
-further down.
 
 
 # Use Cases
