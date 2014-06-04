@@ -28,8 +28,8 @@ seqdiag {
 
  === command lifetime ===
 
-            executor <<-- command [label="execute"];
-        ECP <<-- executor [label="execute", note = "command exits"];
+            executor <<-- command [label="execute", rightnote = "command exits"];
+        ECP <<-- executor [label="execute", note = "executor exits"];
         ECP <<- executor [label="reap", leftnote = "pid has exited"];
     EC  <- ECP [label = "wait", leftnote = "wait > containerizer::Termination"];
 }
