@@ -85,19 +85,22 @@ via fork-exec within the ECP.
 
 ### Task Launching
 
-A task is in a staging state and now gets started and reaped.
+A task is in a staging state and now gets started and observed until
+it gets into a final state.
 
 ![Task Launching Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-launch-seqdiag.png?raw=true)
 
 ### Task Running
 
-A task has gotten launched at some point and now is considered being active by the slave.
+A task has gotten launched at some point and now is considered being
+in a non terminal state by the slave.
 
 ![Task Running Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-lifecycle-seqdiag.png?raw=true)
 
 ### Resource Limitation
 
-While a task is active, a resource limitation was identified.
+While a task is active, a resource limitation was identified (e.g.
+out of memory).
 
 ![Resource Limitation Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-kill-seqdiag.png?raw=true)
 
@@ -126,7 +129,7 @@ ultimate command reaper.
 
 ## Slave Recovery Sequence Diagram
 
-While tasks (commands) are active, the slave fails over.
+While tasks are active, the slave fails over.
 
 ### Recovery
 
@@ -325,9 +328,9 @@ This call is expected to pass containerizer::Containers back via stdout.
 ### Internal ECP state recovery
 
 Allows the ECP to do a state recovery on its own. If the ECP
-uses state check-pointing e.g. via file system, then this call would be
-a good moment to de-serialize that state information. Make sure you
-also see Slave Recovery below for more.
+uses state check-pointing e.g. via file system, then this call would
+be a good moment to de-serialize that state information. Make sure you
+also see [Slave Recovery Overview](#slave-recovery-overview) for more.
 
     recover
 
