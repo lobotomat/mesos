@@ -66,7 +66,7 @@ further down.
 ![Command Lifecycle Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-launch-seqdiag.png?raw=true)
 
 
-## Task Launching Details
+## Task Launching Overview
 
 * EC invokes `launch` on the ECP.
  * Along with that call, the ECP will receive a containerizer::Launch
@@ -85,7 +85,12 @@ via fork-exec within the ECP.
  EC.
 
 
-## Slave Recovery Details
+## Recovery Sequence Diagram
+
+![Recovery Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-recover-seqdiag.png?raw=true)
+
+
+## Slave Recovery Overview
 
 * Slave recovers via check pointed state.
 * EC invokes `recover` on the ECP - there is no protobuf message sent
