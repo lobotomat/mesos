@@ -14,9 +14,11 @@ seqdiag {
     EC <-- ECP [label = "launch"];
             executor ->> command [label = "execute", rightnote = "command starts"];
 
- === Isolation ===
+ === Task Running ===
 
             executor <<-- command [label = "execute", rightnote = "command exits"];
         ECP <<- executor [label = "reap", leftnote = "pid status"];
     EC  <- ECP [label = "wait", leftnote = "wait > containerizer::Termination\nkilled = false"];
+
+ === Task Finished ===
 }
