@@ -5,12 +5,11 @@ layout: documentation
 # External Containerizer
 
 
-First some abbreviations used throughout this document:
-
-EC = external containerizer = part of mesos that provides an API for
-containerizing via external plugin executables.
-ECP = external containerizer program = external plugin executable
-implementing the actual containerizing.
+* EC = external containerizer. A part of the mesos slave that provides
+an API for containerizing via external plugin executables.
+* ECP = external containerizer program. An external plugin executable
+implementing the actual containerizing by interfacing with a
+containerizing system (e.g. Docker).
 
 # Containerizing
 
@@ -18,26 +17,28 @@ implementing the actual containerizing.
 # General Overview
 
 EC invokes ECP as a shell process, passing the command as a parameter
-to the ECP executable. Many invocations on the ECP will also pass a
-protobuf message along via stdin. Some invocations on the ECP also
-expect to deliver a result protobuf message back via stdout.
-All protobuf messages are prefixed by their original length -
-this is sometimes referred to as “Record-IO”-format. See
-[Record-IO De/Serializing Example](#record-io-deserializing-example).
+to the ECP executable. Additional data is exhanged via stdin and
+stdout.
 
 The ECP is expected to return a zero exit code for all commands it was
 able to process. A non-zero status code signals an error. Below you
 will find an overview of the commands that have to be implemented by
 an ECP, as well as their invocation scheme.
 
-The ECP is expected to be using stderr for logging and displaying
-additional debug information. That information is getting logged, see
-[Enviroment: **Sandbox**](#sandbox).
-
-
+The ECP is expected to be using stderr for state info and displaying
+additional debug information. That information is getting logged to
+a file, see [Enviroment: **Sandbox**](#sandbox).
 
 
 ### Call and communication scheme
+
+Interface describing the functions an ECP has to implement via
+command calls. Many invocations on the ECP will also pass a
+protobuf message along via stdin. Some invocations on the ECP also
+expect to deliver a result protobuf message back via stdout.
+All protobuf messages are prefixed by their original length -
+this is sometimes referred to as “Record-IO”-format. See
+[Record-IO De/Serializing Example](#record-io-deserializing-example).
 
 **COMMAND < INPUT-PROTO > RESULT-PROTO**
 
