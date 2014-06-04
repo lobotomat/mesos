@@ -109,6 +109,8 @@ ultimate command reaper.
 
 ## Recovery Sequence Diagram
 
+While tasks (commands) are active, the slave fails over.
+
 ![Recovery Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-recover-seqdiag.png?raw=true)
 
 

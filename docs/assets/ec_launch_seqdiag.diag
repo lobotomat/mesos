@@ -15,7 +15,7 @@ seqdiag {
                 executor ->> command [label = "execute", rightnote = "command starts"];
 
     EC -> ECP [label = "wait", leftnote = "wait < containerizer::Wait"];
-        ECP ->> executor [label="reap", leftnote = "wait on persisted pid"];
+        ECP ->> executor [label = "reap", leftnote = "wait on persisted pid"];
     EC -> ECP [label = "update", leftnote = "update < containerizer::Update"];
         ECP -> ECP [label = "set\ncontainer\nresource\nlimitations"];
     EC  <-- ECP [label = "update"];
@@ -23,9 +23,17 @@ seqdiag {
         ECP -> ECP [label = "get\ncontainer\nresource\nusage"];
     EC  <- ECP [label = "usage", leftnote = "usage > mesos::ResourceStatistics"];
 
+ === enforce isolation ===
+
+        ECP ->> executor [label = "kill"];
+                executor ->> command [label = "kill"];
+                executor <<-- command [label = "execute", rightnote = "command terminates"];
+        ECP <<- executor [label = "reap", leftnote = "pid status"];
+    EC  <- ECP [label = "wait", leftnote = "wait > containerizer::Termination\nkilled = true"];
+
  === command lifetime ===
 
-                executor <<-- command [label="execute", rightnote = "command exits"];
-        ECP <<- executor [label="reap", leftnote = "pid status"];
-    EC  <- ECP [label = "wait", leftnote = "wait > containerizer::Termination"];
+                executor <<-- command [label = "execute", rightnote = "command exits"];
+        ECP <<- executor [label = "reap", leftnote = "pid status"];
+    EC  <- ECP [label = "wait", leftnote = "wait > containerizer::Termination\nkilled = false"];
 }
