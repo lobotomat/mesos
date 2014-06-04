@@ -86,6 +86,8 @@ via fork-exec within the ECP.
 
 ## Slave Recovery Overview
 
+While tasks (commands) are active, the slave fails over.
+
 * Slave recovers via check pointed state.
 * EC invokes `recover` on the ECP - there is no protobuf message sent
 or expected as a result from this command.
@@ -108,8 +110,6 @@ ultimate command reaper.
 
 
 ## Recovery Sequence Diagram
-
-While tasks (commands) are active, the slave fails over.
 
 ![Recovery Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-recover-seqdiag.png?raw=true)
 
