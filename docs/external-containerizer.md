@@ -83,10 +83,10 @@ via fork-exec within the ECP.
 ## Task Lifecycle Sequence Diagrams
 
 
-### Task Lifespan
+### Task Staging
 ![Task Lifecycle Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-launch-seqdiag.png?raw=true)
 
-### Task Lifecycle
+### Task Running
 ![Isolation Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-lifecycle-seqdiag.png?raw=true)
 
 ### Resource Limitation
