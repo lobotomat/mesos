@@ -84,12 +84,21 @@ via fork-exec within the ECP.
 
 
 ### Task Launching
+
+A task is in a staging state and now gets started and reaped.
+
 ![Task Launching Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-launch-seqdiag.png?raw=true)
 
 ### Task Running
+
+A task has gotten launched at some point and now is considered being active by the slave.
+
 ![Task Running Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-lifecycle-seqdiag.png?raw=true)
 
 ### Resource Limitation
+
+While a task (command) is active, a resource limitation was identified.
+
 ![Resource Limitation Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-kill-seqdiag.png?raw=true)
 
 ## Slave Recovery Overview
