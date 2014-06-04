@@ -7,29 +7,25 @@ seqdiag {
     default_fontsize = 16;
     activation = none;
 
-    EC; ECP; isolation; executor; command;
+    EC; ECP; executor; command;
 
     EC -> ECP [label = "launch", leftnote = "launch < containerizer::Launch"];
         ECP ->> executor [label = "execute", leftnote = "fork exec,\npersist pid"];
-            executor ->> command [label = "execute", rightnote = "command starts"];
-
     EC <-- ECP [label = "launch"];
+                executor ->> command [label = "execute", rightnote = "command starts"];
 
     EC -> ECP [label = "wait", leftnote = "wait < containerizer::Wait"];
         ECP ->> executor [label="reap", leftnote = "wait on persisted pid"];
     EC -> ECP [label = "update", leftnote = "update < containerizer::Update"];
-        ECP -> isolation [label = "set container\nresource limitations"];
-        ECP <-- isolation;
+        ECP -> ECP [label = "set\ncontainer\nresource\nlimitations"];
     EC  <-- ECP [label = "update"];
     EC -> ECP [label = "usage", leftnote = "usage < containerizer::Usage"];
-        ECP -> isolation [label = "read container\nresource usage"];
-        ECP <- isolation;
+        ECP -> ECP [label = "get\ncontainer\nresource\nusage"];
     EC  <- ECP [label = "usage", leftnote = "usage > mesos::ResourceStatistics"];
 
  === command lifetime ===
 
-            executor <<-- command [label="execute", rightnote = "command exits"];
-        ECP <<-- executor [label="execute", note = "executor exits"];
-        ECP <<- executor [label="reap", leftnote = "pid has exited"];
+                executor <<-- command [label="execute", rightnote = "command exits"];
+        ECP <<- executor [label="reap", leftnote = "pid status"];
     EC  <- ECP [label = "wait", leftnote = "wait > containerizer::Termination"];
 }

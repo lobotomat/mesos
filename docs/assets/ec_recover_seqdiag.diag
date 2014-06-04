@@ -26,11 +26,10 @@ seqdiag {
             ECP -> executor [label = "reap", leftnote = "wait on persisted pid"];
         EC -> ECP [label = "destroy", leftnote = "destroy > containerizer::Destroy"];
             ECP ->> executor [label = "kill", leftnote = "terminate pid"]
-                executor ->> command [label = "kill"]
         EC <-- ECP [label = "destroy"];
+                executor ->> command [label = "kill"]
                 executor <<- command [label = "execute", rightnote = "command terminates"]
-            ECP <<-- executor [label = "execute", rightnote = "executor terminates"];
-            ECP <<- executor [label="reap", leftnote = "pid has terminated"];
+            ECP <<- executor [label="reap", leftnote = "pid status"];
         EC <- ECP [label = "wait", leftnote = "wait > containerizer::Termination"];
 
  === orphan destruction ===
@@ -42,8 +41,7 @@ seqdiag {
             ECP ->> executor [label = "reap", leftnote = "wait on persisted pid"];
  === command recovered ===
                 executor <<-- command [label = "execute", rightnote = "command exits"];
-            ECP <<-- executor [label = "execute", rightnote = "executor exits"];
-            ECP <<- executor [label = "reap", leftnote = "pid has exited"];
+            ECP <<- executor [label = "reap", leftnote = "pid status"];
         EC  <- ECP [label = "wait", leftnote = "wait > containerizer::Termination"];
     slave <-- EC [label = "wait"];
 }

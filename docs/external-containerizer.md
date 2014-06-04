@@ -12,6 +12,8 @@ containerizing via external plugin executables.
 ECP = external containerizer program = external plugin executable
 implementing the actual containerizing.
 
+# Containerizing
+
 
 # General Overview
 
@@ -81,7 +83,6 @@ via fork-exec within the ECP.
 ## Task Lifecycle Sequence Diagram
 
 ![Task Lifecycle Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-launch-seqdiag.png?raw=true)
-
 
 ## Slave Recovery Overview
 
