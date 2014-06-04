@@ -4,7 +4,7 @@ seqdiag {
     edge_length = 192;
     span_height = 8;
 
-    default_fontsize = 16;
+    default_fontsize = 14;
     activation = none;
 
     EC; ECP; executor; command;
