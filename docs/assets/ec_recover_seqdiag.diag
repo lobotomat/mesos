@@ -1,0 +1,46 @@
+seqdiag {
+    default_note_color = lightblue;
+
+    edge_length = 192;
+    span_height = 8;
+
+    default_fontsize = 20;
+    activation = none;
+
+    slave; EC; ECP; command;
+
+
+    slave -> slave [label = "state\nrecovery"];
+    slave -> EC [label = "recover"];
+        EC -> ECP [label = "recover"];
+        EC <-- ECP [label = "recover"];
+
+        EC -> ECP [label = "containers"];
+        EC <- ECP [label = "containers", note = "containers > containerizer::Containers"];
+
+        EC -> EC [label = "identify\norphans"];
+
+ === orphan destruction ===
+
+        EC -> ECP [label = "wait", note = "wait < containerizer::Wait"];
+            ECP ->> command [label = "reap", note = "wait on persisted pid"];
+        EC -> ECP [label = "destroy", note = "destroy > containerizer::Destroy"];
+            ECP ->> command [label = "kill", note = "terminate pid"]
+        EC <-- ECP [label = "destroy"];
+            ECP <<-- command [label="execute", note = "command exits"];
+            ECP <<- command [label="reap", note = "pid has terminated"];
+        EC <- ECP [label = "wait", note = "wait > containerizer::Termination"];
+
+ === ===
+
+    slave <-- EC [label = "recover"];
+
+    slave -> EC [label = "wait"];
+        EC -> ECP [label = "wait", note = "wait < containerizer::Wait"];
+            ECP ->> command [label = "reap", note = "wait on persisted pid"];
+
+        ECP <<-- command [label = "execute", note = "command exits"];
+        ECP <<- command [label = "reap", note = "pid has terminated"];
+        EC  <- ECP [label = "wait", note = "wait > containerizer::Termination"];
+    slave <-- EC [label = "wait"];
+}

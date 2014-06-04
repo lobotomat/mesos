@@ -1,0 +1,32 @@
+seqdiag {
+    default_note_color = lightblue;
+
+    edge_length = 192;
+    span_height = 8;
+
+    default_fontsize = 20;
+    activation = none;
+
+    EC; ECP; isolation; command;
+
+    EC -> ECP [label = "launch", note = "launch < containerizer::Launch"];
+        ECP ->> command [label="execute", note = "fork exec,\npersist pid"];
+    EC <-- ECP [label = "launch"];
+
+    EC -> ECP [label = "wait", note = "wait < containerizer::Wait"];
+        ECP ->> command [label="reap", note = "wait on persisted pid"];
+    EC -> ECP [label = "update", note = "update < containerizer::Update"];
+        ECP -> isolation [label = "set container\nresource limitations"];
+        ECP <-- isolation;
+    EC  <-- ECP [label = "update"];
+    EC -> ECP [label = "usage", note = "usage < containerizer::Usage"];
+        ECP -> isolation [label = "read container\nresource usage"];
+        ECP <- isolation;
+    EC  <- ECP [label = "usage", note = "usage > mesos::ResourceStatistics"];
+
+ === command lifetime ===
+
+    ECP <<-- command [label="execute", note = "command exits"];
+    ECP <<- command [label="reap", note = "pid has terminated"];
+    EC  <- ECP [label = "wait", note = "wait > containerizer::Termination"];
+}
