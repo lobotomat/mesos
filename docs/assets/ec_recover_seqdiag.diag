@@ -4,10 +4,10 @@ seqdiag {
     edge_length = 192;
     span_height = 8;
 
-    default_fontsize = 20;
+    default_fontsize = 16;
     activation = none;
 
-    slave; EC; ECP; command;
+    slave; EC; ECP; executor; command;
 
 
     slave -> slave [label = "state\nrecovery"];
@@ -16,31 +16,36 @@ seqdiag {
         EC <-- ECP [label = "recover"];
 
         EC -> ECP [label = "containers"];
-        EC <- ECP [label = "containers", note = "containers > containerizer::Containers"];
+        EC <- ECP [label = "containers", leftnote = "containers > containerizer::Containers"];
 
         EC -> EC [label = "identify\norphans"];
 
  === orphan destruction ===
 
-        EC -> ECP [label = "wait", note = "wait < containerizer::Wait"];
-            ECP ->> command [label = "reap", note = "wait on persisted pid"];
-        EC -> ECP [label = "destroy", note = "destroy > containerizer::Destroy"];
-            ECP ->> command [label = "kill", note = "terminate pid"]
+        EC -> ECP [label = "wait", leftnote = "wait < containerizer::Wait"];
+            ECP -> executor [label = "reap", leftnote = "wait on persisted pid"];
+                executor ->> command [label = "reap"];
+        EC -> ECP [label = "destroy", leftnote = "destroy > containerizer::Destroy"];
+            ECP ->> executor [label = "kill", leftnote = "terminate pid"]
+                executor ->> command [label = "kill"]
         EC <-- ECP [label = "destroy"];
-            ECP <<-- command [label="execute", note = "command exits"];
-            ECP <<- command [label="reap", note = "pid has terminated"];
-        EC <- ECP [label = "wait", note = "wait > containerizer::Termination"];
+                executor <<- command [label = "execute", rightnote = "command terminates"]
+                executor <<- command [label = "reap"]
+            ECP <<-- executor [label = "execute", rightnote = "executor terminates"];
+            ECP <<- executor [label="reap", leftnote = "pid has terminated"];
+        EC <- ECP [label = "wait", leftnote = "wait > containerizer::Termination"];
 
- === ===
+ === orphan destruction ===
 
     slave <-- EC [label = "recover"];
 
     slave -> EC [label = "wait"];
-        EC -> ECP [label = "wait", note = "wait < containerizer::Wait"];
-            ECP ->> command [label = "reap", note = "wait on persisted pid"];
-
-        ECP <<-- command [label = "execute", note = "command exits"];
-        ECP <<- command [label = "reap", note = "pid has terminated"];
-        EC  <- ECP [label = "wait", note = "wait > containerizer::Termination"];
+        EC -> ECP [label = "wait", leftnote = "wait < containerizer::Wait"];
+            ECP ->> executor [label = "reap", leftnote = "wait on persisted pid"];
+ === command recovered ===
+                executor <<-- command [label = "execute", rightnote = "command exits"];
+            ECP <<-- executor [label = "execute", rightnote = "executor exits"];
+            ECP <<- executor [label = "reap", leftnote = "pid has exited"];
+        EC  <- ECP [label = "wait", leftnote = "wait > containerizer::Termination"];
     slave <-- EC [label = "wait"];
 }
