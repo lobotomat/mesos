@@ -299,11 +299,14 @@ flags (default_container_image). This variable is provided only in
 calls to `launch`.
 
 
+# Use Cases
 
-# Example Scenarios
+## Command Lifecycle Sequence Diagram
+
+![Command Lifecycle Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-launch-seqdiag.png?raw=true)
 
 
-## Task Launching
+## Task Launching Details
 
 * EC invokes `launch` on the ECP.
  * Along with that call, the ECP will receive a containerizer::Launch
@@ -322,7 +325,7 @@ via fork-exec within the ECP.
  EC.
 
 
-## Slave Recovery
+## Slave Recovery Details
 
 * Slave recovers via check pointed state.
 * EC invokes `recover` on the ECP - there is no protobuf message sent
@@ -343,7 +346,6 @@ containers.
 * Slave will now call `wait` on the ECP (via EC) for all recovered
 containers. This does once again put ‘wait' into the position of the
 ultimate command reaper.
-
 
 
 # Appendix
