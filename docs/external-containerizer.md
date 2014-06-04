@@ -78,9 +78,9 @@ via fork-exec within the ECP.
  EC.
 
 
-## Command Lifecycle Sequence Diagram
+## Task Lifecycle Sequence Diagram
 
-![Command Lifecycle Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-launch-seqdiag.png?raw=true)
+![Task Lifecycle Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-launch-seqdiag.png?raw=true)
 
 
 ## Slave Recovery Overview
@@ -109,7 +109,6 @@ ultimate command reaper.
 ## Recovery Sequence Diagram
 
 ![Recovery Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-recover-seqdiag.png?raw=true)
-
 
 
 # Command Details
