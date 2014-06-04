@@ -23,7 +23,7 @@ protobuf message along via stdin. Some invocations on the ECP also
 expect to deliver a result protobuf message back via stdout.
 All protobuf messages are prefixed by their original length -
 this is sometimes referred to as “Record-IO”-format. See
-[Record-IO De/Serializing Example](#record-iodeserializingexample).
+[Record-IO De/Serializing Example](#record-io-deserializing-example).
 
 The ECP is expected to return a zero exit code for all commands it was
 able to process. A non-zero status code signals an error. Below you
