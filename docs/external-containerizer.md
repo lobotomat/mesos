@@ -97,13 +97,11 @@ A task has gotten launched at some point and now is considered being active by t
 
 ### Resource Limitation
 
-While a task (command) is active, a resource limitation was identified.
+While a task is active, a resource limitation was identified.
 
 ![Resource Limitation Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-kill-seqdiag.png?raw=true)
 
 ## Slave Recovery Overview
-
-While tasks (commands) are active, the slave fails over.
 
 * Slave recovers via check pointed state.
 * EC invokes `recover` on the ECP - there is no protobuf message sent
@@ -128,10 +126,17 @@ ultimate command reaper.
 
 ## Slave Recovery Sequence Diagram
 
+While tasks (commands) are active, the slave fails over.
+
 ### Recovery
+
 ![Recovery Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-recover-seqdiag.png?raw=true)
 
 ### Orphan Destruction
+
+Containers identified by the ECP as being active but not slave state
+recoverable.
+
 ![Orphan Destruction Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-orphan-seqdiag.png?raw=true)
 
 
