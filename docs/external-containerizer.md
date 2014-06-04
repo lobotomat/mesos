@@ -80,27 +80,29 @@ via fork-exec within the ECP.
  EC.
 
 
-## Task Lifecycle Sequence Diagrams
+## Container Lifecycle Sequence Diagrams
 
 
-### Task Launching
+### Container Launching
 
-A task is in a staging state and now gets started and observed until
-it gets into a final state.
+A container is in a staging state and now gets started and observed
+until it gets into a final state.
 
-![Task Launching Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-launch-seqdiag.png?raw=true)
+![Container Launching Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-launch-seqdiag.png?raw=true)
 
-### Task Running
+### Container Running
 
-A task has gotten launched at some point and now is considered being
-in a non terminal state by the slave.
+A container has gotten launched at some point and now is considered
+being in a non terminal state by the slave. The following commands
+will get triggered multiple times at the ECP over the lifetime of a
+container. Their order however is not determined.
 
-![Task Running Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-lifecycle-seqdiag.png?raw=true)
+![Container Running Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-lifecycle-seqdiag.png?raw=true)
 
 ### Resource Limitation
 
-While a task is active, a resource limitation was identified (e.g.
-out of memory).
+While a container is active, a resource limitation was identified
+(e.g. out of memory) by the ECP isolation mechanism of choice.
 
 ![Resource Limitation Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-kill-seqdiag.png?raw=true)
 
@@ -129,16 +131,16 @@ ultimate command reaper.
 
 ## Slave Recovery Sequence Diagram
 
-While tasks are active, the slave fails over.
-
 ### Recovery
+
+While containers are active, the slave fails over.
 
 ![Recovery Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-recover-seqdiag.png?raw=true)
 
 ### Orphan Destruction
 
 Containers identified by the ECP as being active but not slave state
-recoverable.
+recoverable are getting terminated.
 
 ![Orphan Destruction Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-orphan-seqdiag.png?raw=true)
 
