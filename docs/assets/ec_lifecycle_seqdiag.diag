@@ -1,0 +1,22 @@
+seqdiag {
+    default_note_color = lightblue;
+
+    edge_length = 192;
+    span_height = 8;
+
+    default_fontsize = 16;
+    activation = none;
+
+    EC; ECP; executor; command;
+
+    EC -> ECP [label = "wait", leftnote = "wait < containerizer::Wait"];
+        ECP ->> executor [label = "reap", leftnote = "wait on persisted pid"];
+    EC -> ECP [label = "update", leftnote = "update < containerizer::Update"];
+        ECP -> ECP [label = "set\ncontainer\nresource\nlimitations"];
+    EC  <-- ECP [label = "update"];
+    EC -> ECP [label = "usage", leftnote = "usage < containerizer::Usage"];
+        ECP -> ECP [label = "get\ncontainer\nresource\nusage"];
+    EC  <- ECP [label = "usage", leftnote = "usage > mesos::ResourceStatistics"];
+
+ === Resource Limition ===
+}

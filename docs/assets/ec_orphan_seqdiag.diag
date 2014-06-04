@@ -1,0 +1,22 @@
+seqdiag {
+    default_note_color = lightblue;
+
+    edge_length = 192;
+    span_height = 8;
+
+    default_fontsize = 16;
+    activation = none;
+
+    slave; EC; ECP; executor; command;
+
+
+        EC -> ECP [label = "wait", leftnote = "wait < containerizer::Wait"];
+            ECP -> executor [label = "reap", leftnote = "wait on persisted pid"];
+        EC -> ECP [label = "destroy", leftnote = "destroy > containerizer::Destroy"];
+            ECP ->> executor [label = "kill", leftnote = "terminate pid"];
+        EC <-- ECP [label = "destroy"];
+                executor ->> command [label = "kill"];
+                executor <<- command [label = "execute", rightnote = "command terminates"];
+            ECP <<- executor [label="reap", leftnote = "pid status"];
+        EC <- ECP [label = "wait", leftnote = "wait > containerizer::Termination"];
+}
