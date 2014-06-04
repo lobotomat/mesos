@@ -1,0 +1,17 @@
+seqdiag {
+    default_note_color = lightblue;
+
+    edge_length = 192;
+    span_height = 8;
+
+    default_fontsize = 16;
+    activation = none;
+
+    EC; ECP; executor; command;
+
+        ECP ->> executor [label = "kill"];
+                executor ->> command [label = "kill"];
+                executor <<-- command [label = "execute", rightnote = "command terminates"];
+        ECP <<- executor [label = "reap", leftnote = "pid status"];
+    EC  <- ECP [label = "wait", leftnote = "wait > containerizer::Termination\nkilled = true"];
+}

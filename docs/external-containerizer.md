@@ -61,7 +61,7 @@ other commands are queued until `launch` returns from the ECP.
 
 # Use Cases
 
-## Task Launching Overview
+## Task Launching EC / ECP Overview
 
 * EC invokes `launch` on the ECP.
  * Along with that call, the ECP will receive a containerizer::Launch
@@ -80,9 +80,17 @@ via fork-exec within the ECP.
  EC.
 
 
-## Task Lifecycle Sequence Diagram
+## Task Lifecycle Sequence Diagrams
 
+
+### Task Lifecycle
 ![Task Lifecycle Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-launch-seqdiag.png?raw=true)
+
+### Isolation
+![Isolation Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-lifecycle-seqdiag.png?raw=true)
+
+### Resource Limitation
+![Resource Limitation Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-kill-seqdiag.png?raw=true)
 
 ## Slave Recovery Overview
 
@@ -111,7 +119,11 @@ ultimate command reaper.
 
 ## Slave Recovery Sequence Diagram
 
+### Recovery
 ![Recovery Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-recover-seqdiag.png?raw=true)
+
+### Orphan Destruction
+![Orphan Destruction Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-orphan-seqdiag.png?raw=true)
 
 
 # Command Details
