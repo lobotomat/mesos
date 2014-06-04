@@ -11,7 +11,7 @@ seqdiag {
 
     EC -> ECP [label = "launch", leftnote = "launch < containerizer::Launch"];
         ECP ->> executor [label = "execute", leftnote = "fork exec,\npersist pid"];
-            executor ->> command [label = "execute"];
+            executor ->> command [label = "execute", rightnote = "command starts"];
 
     EC <-- ECP [label = "launch"];
 
