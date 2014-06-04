@@ -109,7 +109,7 @@ containers. This does once again put ‘wait' into the position of the
 ultimate command reaper.
 
 
-## Recovery Sequence Diagram
+## Slave Recovery Sequence Diagram
 
 ![Recovery Scheme](https://github.com/lobotomat/mesos/blob/master/docs/images/ec-recover-seqdiag.png?raw=true)
 
