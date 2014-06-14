@@ -115,8 +115,8 @@ or expected as a result from this command.
  * The ECP may try to recover internal states via its own failover
 mechanisms, if needed.
 * After `recover` returns, the EC will invoke `containers` on the ECP.
- * The ECP should return Containers which is a list of currently active
-containers.
+ * The ECP should return Containers which is a list of currently
+ active containers.
 **Note** these containers are known to the ECP but might in fact
 partially be unknown to the slave (e.g. slave failed after launch but
 before or within wait) - those containers are considered to be
@@ -316,7 +316,8 @@ Returns all container identifiers known to be currently active.
 
 This call does not receive any additional data via stdin.
 
-This call is expected to pass containerizer::Containers back via stdout.
+This call is expected to pass containerizer::Containers back via
+stdout.
 
     /**
      * Information on all active containers returned by the containerizer
@@ -391,9 +392,9 @@ calls to `launch`.
 
 ## Enhanced Verbosity Logging
 
-For receiving an increased level status information from the EC, use
-the GLOG verbosity level. Prefix your mesos startup call by setting
-the level to a value higher than or equal to two.
+For receiving an increased level of status information from the EC
+use the GLOG verbosity level. Prefix your mesos startup call by
+setting the level to a value higher than or equal to two.
 
 `GLOG_v=2 ./bin/mesos-slave --master=[...]`
 
@@ -402,8 +403,8 @@ the level to a value higher than or equal to two.
 
 All output to stderr of your ECP will get logged to the executor's
 'stderr' log file.
-The specific location can be extracted from the (enhanced verbosity
-logging)[enhanced_verbosity_logging] of the EC.
+The specific location can be extracted from the [enhanced verbosity
+logging](enhanced_verbosity_logging) of the EC.
 
 Example Log Output:
 
@@ -457,7 +458,7 @@ Example Hexdump:
     000001f8:  2a04 7469 6c6c 3228 0a26 3230 3134 3035 3236 2d30 3135 3030  :*.till2(.&20140526-01500
     00000210:  362d 3136 3737 3733 3433 2d35 3534 3033 2d36 3235 3637 2d30  :6-16777343-55403-62567-0
     00000228:  3a18 736c 6176 6528 3129 4031 3237 2e30 2e30 2e31 3a35 3534  ::.slave(1)@127.0.0.1:554
-    00000240:  3033 4000  
+    00000240:  3033 4000
 
 ## Record-IO De/Serializing Example
 How to send and receive such record-io formatted message
