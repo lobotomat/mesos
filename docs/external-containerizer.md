@@ -404,7 +404,7 @@ setting the level to a value higher than or equal to two.
 All output to stderr of your ECP will get logged to the executor's
 'stderr' log file.
 The specific location can be extracted from the [enhanced verbosity
-logging](enhanced_verbosity_logging) of the EC.
+logging](#enhanced-verbosity-logging) of the EC.
 
 Example Log Output:
 
