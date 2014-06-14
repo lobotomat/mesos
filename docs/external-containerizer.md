@@ -386,11 +386,42 @@ flags (default_container_image). This variable is provided only in
 calls to `launch`.
 
 
+
+# Debugging
+
+## Enhanced Verbosity Logging
+
+For receiving an increased level status information from the EC, use
+the GLOG verbosity level. Prefix your mesos startup call by setting
+the level to a value higher than or equal to two.
+
+`GLOG_v=2 ./bin/mesos-slave --master=[...]`
+
+
+## ECP stderr logging
+
+All output to stderr of your ECP will get logged to the executor's
+'stderr' log file.
+The specific location can be extracted from the (enhanced verbosity
+logging)[enhanced_verbosity_logging] of the EC.
+
+Example Log Output:
+
+    I0603 02:12:34.165662 174215168 external_containerizer.cpp:1083] Invoking external containerizer for method 'launch'
+    I0603 02:12:34.165675 174215168 external_containerizer.cpp:1100] calling: [/Users/till/Development/mesos-till/build/src/test-containerizer launch]
+    I0603 02:12:34.165678 175824896 slave.cpp:497] Successfully attached file '/tmp/ExternalContainerizerTest_Launch_lP22ci/slaves/20140603-021232-16777343-51377-7591-0/frameworks/20140603-021232-16777343-51377-7591-0000/executors/1/runs/558e0a69-70da-4d71-b4c4-c2820b1d6345'
+    I0603 02:12:34.165686 174215168 external_containerizer.cpp:1101] directory: /tmp/ExternalContainerizerTest_Launch_lP22ci/slaves/20140603-021232-16777343-51377-7591-0/frameworks/20140603-021232-16777343-51377-7591-0000/executors/1/runs/558e0a69-70da-4d71-b4c4-c2820b1d6345
+
+The stderr output of the ECP for this call is found within the stderr file located in the directory displayed in the last quoted line.
+
+    cat /tmp/ExternalContainerizerTest_Launch_lP22ci/slaves/20140603-021232-16777343-51377-7591-0/frameworks/20140603-021232-16777343-51377-7591-0000/executors/1/runs/558e0a69-70da-4d71-b4c4-c2820b1d6345/stderr
+
+
 # Appendix
 
 ## Record-IO Proto Example: Launch
 
-This is what a properly record-io formatted protobuf looks like. 
+This is what a properly record-io formatted protobuf looks like.
 
 **name:    offset**
 
