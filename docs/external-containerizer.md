@@ -399,12 +399,12 @@ setting the level to a value higher than or equal to two.
 `GLOG_v=2 ./bin/mesos-slave --master=[...]`
 
 
-## ECP stderr logging
+## ECP stderr Logging
 
 All output to stderr of your ECP will get logged to the executor's
 'stderr' log file.
-The specific location can be extracted from the [enhanced verbosity
-logging](#enhanced-verbosity-logging) of the EC.
+The specific location can be extracted from the [Enhanced Verbosity
+Logging](#enhanced-verbosity-logging) of the EC.
 
 Example Log Output:
 
