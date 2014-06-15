@@ -1058,6 +1058,20 @@ mesos-ec2 services will not function.
   if test "x$without_bundled_distribute" = "xyes" || \
      test "x$enable_bundled" != "xyes"; then
 
+	# Test for seqdiag so we can build documentation diagrams.
+	AC_PATH_PROG([SEQDIAG], [seqdiag], [$SEQDIAG], [$PATH])
+	if test "x$SEQDIAG" = "x"; then
+	AC_MSG_WARN([can not find SEQDIAG
+	-------------------------------------------------------------------
+	It appears we were unable to locate seqdiag.
+
+	The documentation sequence diagrams can not be rendered.
+	-------------------------------------------------------------------])
+	fi
+
+	AM_CONDITIONAL([HAS_SEQDIAG], [test "x$SEQDIAG" != "x"])
+
+
     AC_PYTHON_MODULE([distutils], [no])
     if test "x$HAVE_PYMOD_distutils" = "xno"; then
       AC_PYTHON_MODULE([setuptools], [no])
