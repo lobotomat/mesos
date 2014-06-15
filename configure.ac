@@ -80,6 +80,7 @@ AC_CONFIG_SUBDIRS([3rdparty/libprocess])
 AC_CONFIG_FILES([Makefile mesos.pc])
 AC_CONFIG_FILES([ec2/Makefile])
 AC_CONFIG_FILES([src/Makefile])
+AC_CONFIG_FILES([docs/Makefile])
 AC_CONFIG_FILES([3rdparty/Makefile])
 
 AC_CONFIG_FILES([bin/mesos.sh], [chmod +x bin/mesos.sh])
@@ -183,6 +184,8 @@ AC_ARG_VAR([JAVA_JVM_LIBRARY], [full path to libjvm.so])
 AC_ARG_VAR([MAVEN_HOME], [looks for mvn at MAVEN_HOME/bin/mvn])
 
 AC_ARG_VAR([PYTHON], [which Python interpreter to use])
+
+AC_ARG_VAR([SEQDIAG], [looks for seqdiag at SEQDIAG])
 
 AC_MSG_NOTICE([Setting up build environment for ${target_cpu} ${target_os}])
 # Determine the current OS (TODO(benh): Does autotools do this for us?).
@@ -740,6 +743,22 @@ mesos-ec2 services will not function.
 fi
 
 AM_CONDITIONAL([HAS_PYTHON], [test "x$has_python" = "xyes"])
+
+
+# Test for seqdiag so we can build documentation diagrams.
+AC_PATH_PROG([SEQDIAG], [seqdiag], [$SEQDIAG], [$PATH])
+if test "x$SEQDIAG" = "x"; then
+AC_MSG_WARN([can not find seqdiag
+-------------------------------------------------------------------
+It appears we were unable to locate seqdiag.
+
+The documentation sequence diagrams can not be rendered.
+-------------------------------------------------------------------])
+fi
+
+AM_CONDITIONAL([HAS_SEQDIAG], [test "x$SEQDIAG" != "x"])
+
+AC_SUBST([SEQDIAG])
 
 AC_CHECK_LIB([z], [gzread], [],
              [AC_MSG_ERROR([cannot find libz
