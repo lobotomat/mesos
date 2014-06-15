@@ -21,7 +21,7 @@ seqdiag {
 
  === Task Running ===
 
-            executor <<- command [label = "reap", rightnote = "command stopped"];
+            executor <<- command [label = "reap", rightnote = "command terminated"];
         ECP <<- executor [label = "reap", leftnote = "pid status"];
     EC  <- ECP [label = "wait", leftnote = "wait > containerizer::Termination\nkilled = false"];
 
