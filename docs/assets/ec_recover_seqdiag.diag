@@ -27,7 +27,6 @@ seqdiag {
     slave -> EC [label = "wait"];
         EC -> ECP [label = "wait", leftnote = "wait < containerizer::Wait"];
             ECP ->> executor [label = "reap", leftnote = "wait on persisted pid"];
-                executor ->> command [label = "reap"];
 
  === Task Running ===
 
