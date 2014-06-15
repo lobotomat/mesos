@@ -16,7 +16,7 @@ seqdiag {
             ECP ->> executor [label = "kill", leftnote = "terminate pid"];
         EC <-- ECP [label = "destroy"];
                 executor ->> command [label = "kill"];
-                executor <<- command [label = "execute", rightnote = "command terminates"];
+                executor <<- command [label = "reap", rightnote = "command terminated"];
             ECP <<- executor [label="reap", leftnote = "pid status"];
         EC <- ECP [label = "wait", leftnote = "wait > containerizer::Termination"];
 }
