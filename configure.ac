@@ -80,6 +80,7 @@ AC_CONFIG_SUBDIRS([3rdparty/libprocess])
 AC_CONFIG_FILES([Makefile mesos.pc])
 AC_CONFIG_FILES([ec2/Makefile])
 AC_CONFIG_FILES([src/Makefile])
+AC_CONFIG_FILES([docs/Makefile])
 AC_CONFIG_FILES([3rdparty/Makefile])
 
 AC_CONFIG_FILES([bin/mesos.sh], [chmod +x bin/mesos.sh])
@@ -207,6 +208,8 @@ AC_ARG_VAR([MAVEN_HOME], [looks for mvn at MAVEN_HOME/bin/mvn])
 AC_ARG_VAR([PROTOBUF_JAR], [full path to protobuf jar on prefixed builds])
 
 AC_ARG_VAR([PYTHON], [which Python interpreter to use])
+
+AC_ARG_VAR([SEQDIAG], [looks for seqdiag at SEQDIAG])
 
 AC_MSG_NOTICE([Setting up build environment for ${target_cpu} ${target_os}])
 # Determine the current OS (TODO(benh): Does autotools do this for us?).
@@ -1054,7 +1057,6 @@ mesos-ec2 services will not function.
   # they asked us to ignore all bundled libraries while compiling and linking.
   if test "x$without_bundled_distribute" = "xyes" || \
      test "x$enable_bundled" != "xyes"; then
-
     AC_PYTHON_MODULE([distutils], [no])
     if test "x$HAVE_PYMOD_distutils" = "xno"; then
       AC_PYTHON_MODULE([setuptools], [no])
@@ -1089,6 +1091,23 @@ correct if you're already doing this.
 fi
 
 AM_CONDITIONAL([HAS_PYTHON], [test "x$has_python" = "xyes"])
+
+
+# Test for seqdiag so we can build documentation diagrams.
+AC_PATH_PROG([SEQDIAG], [seqdiag], [$SEQDIAG], [$PATH])
+if test "x$SEQDIAG" = "x"; then
+AC_MSG_WARN([can not find seqdiag
+-------------------------------------------------------------------
+It appears we were unable to locate seqdiag.
+
+The documentation sequence diagrams can not be rendered.
+-------------------------------------------------------------------])
+fi
+
+AM_CONDITIONAL([HAS_SEQDIAG], [test "x$SEQDIAG" != "x"])
+
+AC_SUBST([SEQDIAG])
+
 
 AM_CONDITIONAL([WITH_BUNDLED_DISTRIBUTE],
     [test "x$with_bundled_distribute" = "xyes"])
