@@ -26,11 +26,14 @@ PHONY_TARGETS =
 
 # Since we generate several files in src/ with config.status, make
 # sure they're regenerated before we recurse into the src directory.
-all-recursive: src/python/setup.py src/java/mesos.pom
+all-recursive: src/python/setup.py			\
+	src/python/interface/setup.py			\
+	src/python/native/setup.py			\
+	src/java/mesos.pom
 
 # Standard stuff.
 EXTRA_DIST += bootstrap LICENSE NOTICE README.md	\
-  support/atexit.sh support/colors.sh
+	support/atexit.sh support/colors.sh
 
 # MPI framework.
 EXTRA_DIST += mpi/README mpi/mpiexec-mesos.in mpi/mpiexec-mesos.py
