@@ -1056,14 +1056,13 @@ correct if you're already doing this.
     with_bundled_distribute=yes
   fi
 
-  AM_CONDITIONAL([WITH_BUNDLED_DISTRIBUTE],
-      [test "x$with_bundled_distribute" = "xyes"])
-
   has_python=yes
 fi
 
 AM_CONDITIONAL([HAS_PYTHON], [test "x$has_python" = "xyes"])
 
+AM_CONDITIONAL([WITH_BUNDLED_DISTRIBUTE],
+    [test "x$with_bundled_distribute" = "xyes"])
 
 # Test for seqdiag so we can build documentation diagrams.
 AC_PATH_PROG([SEQDIAG], [seqdiag], [$SEQDIAG], [$PATH])
