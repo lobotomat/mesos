@@ -205,11 +205,6 @@ AC_ARG_VAR([JAVA_JVM_LIBRARY], [full path to libjvm.so])
 AC_ARG_VAR([MAVEN_HOME], [looks for mvn at MAVEN_HOME/bin/mvn])
 
 AC_ARG_VAR([PROTOBUF_JAR], [full path to protobuf jar on prefixed builds])
-<<<<<<< HEAD
-
-AC_ARG_VAR([PYTHON], [which Python interpreter to use])
-=======
->>>>>>> Fixed configure.ac conflicts, the hard way.
 
 AC_ARG_VAR([PYTHON], [which Python interpreter to use])
 
@@ -325,13 +320,7 @@ fi
 
 AM_CONDITIONAL([WITH_BUNDLED_LEVELDB],
                [test "x$with_bundled_leveldb" = "xyes"])
-<<<<<<< HEAD
 
-
-=======
-
-
->>>>>>> Fixed configure.ac conflicts, the hard way.
 # Check if user has asked us to use a preinstalled glog, or if they
 # asked us to ignore all bundled libraries while compiling and
 # linking.
