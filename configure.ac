@@ -80,7 +80,6 @@ AC_CONFIG_SUBDIRS([3rdparty/libprocess])
 AC_CONFIG_FILES([Makefile mesos.pc])
 AC_CONFIG_FILES([ec2/Makefile])
 AC_CONFIG_FILES([src/Makefile])
-AC_CONFIG_FILES([docs/Makefile])
 AC_CONFIG_FILES([3rdparty/Makefile])
 
 AC_CONFIG_FILES([bin/mesos.sh], [chmod +x bin/mesos.sh])
@@ -206,10 +205,13 @@ AC_ARG_VAR([JAVA_JVM_LIBRARY], [full path to libjvm.so])
 AC_ARG_VAR([MAVEN_HOME], [looks for mvn at MAVEN_HOME/bin/mvn])
 
 AC_ARG_VAR([PROTOBUF_JAR], [full path to protobuf jar on prefixed builds])
+<<<<<<< HEAD
 
 AC_ARG_VAR([PYTHON], [which Python interpreter to use])
+=======
+>>>>>>> Fixed configure.ac conflicts, the hard way.
 
-AC_ARG_VAR([SEQDIAG], [looks for seqdiag at SEQDIAG])
+AC_ARG_VAR([PYTHON], [which Python interpreter to use])
 
 AC_MSG_NOTICE([Setting up build environment for ${target_cpu} ${target_os}])
 # Determine the current OS (TODO(benh): Does autotools do this for us?).
@@ -323,8 +325,13 @@ fi
 
 AM_CONDITIONAL([WITH_BUNDLED_LEVELDB],
                [test "x$with_bundled_leveldb" = "xyes"])
+<<<<<<< HEAD
 
 
+=======
+
+
+>>>>>>> Fixed configure.ac conflicts, the hard way.
 # Check if user has asked us to use a preinstalled glog, or if they
 # asked us to ignore all bundled libraries while compiling and
 # linking.
@@ -1070,7 +1077,6 @@ mesos-ec2 services will not function.
 	fi
 
 	AM_CONDITIONAL([HAS_SEQDIAG], [test "x$SEQDIAG" != "x"])
-
 
     AC_PYTHON_MODULE([distutils], [no])
     if test "x$HAVE_PYMOD_distutils" = "xno"; then
