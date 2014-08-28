@@ -30,7 +30,14 @@
 
 /* Begin PBXBuildFile section */
 		BB01F4B318C1834E00E64633 /* libbuild.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BBC34B0218C17CF500401037 /* libbuild.a */; };
-		BB8DD635192D040800D7B2EB /* mesos_containerizer.hpp in Headers */ = {isa = PBXBuildFile; fileRef = BBB8733318C1E74D001F018E /* mesos_containerizer.hpp */; };
+		BB25307919A7A33400AB8E94 /* containerizer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BB25306519A7A21500AB8E94 /* containerizer.cpp */; };
+		BB25307A19A7A33400AB8E94 /* launch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BB25306719A7A21500AB8E94 /* launch.cpp */; };
+		BB25307B19A7A33400AB8E94 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BB25306919A7A21500AB8E94 /* main.cpp */; };
+		BB25307C19A7A34600AB8E94 /* libmesos_no_3rdparty.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BBF88A9E18C13E3100E83221 /* libmesos_no_3rdparty.a */; };
+		BB25307D19A7A34600AB8E94 /* libprocess.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BBB874FC18C2774D001F018E /* libprocess.dylib */; };
+		BB25307E19A7A36800AB8E94 /* libglog.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BBF88C6218C1498600E83221 /* libglog.0.dylib */; };
+		BB25307F19A7A36800AB8E94 /* libprotobuf.8.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BBF88CDF18C176C500E83221 /* libprotobuf.8.dylib */; };
+		BB25308019A7A38A00AB8E94 /* libcurl.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BBB8750018C27AD3001F018E /* libcurl.dylib */; };
 		BB8DD638192D057500D7B2EB /* external_containerizer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BB8DD636192D057200D7B2EB /* external_containerizer.cpp */; };
 		BB8DD639192D1E5C00D7B2EB /* containerizer.proto in Sources */ = {isa = PBXBuildFile; fileRef = BB151EF71913D34100876C12 /* containerizer.proto */; };
 		BB8DD647192D1FB100D7B2EB /* in_memory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BB8DD643192D1FA200D7B2EB /* in_memory.cpp */; };
@@ -204,7 +211,6 @@
 		BBB8746418C1E74E001F018E /* mem.hpp in Headers */ = {isa = PBXBuildFile; fileRef = BBB8732E18C1E74D001F018E /* mem.hpp */; };
 		BBB8746518C1E74E001F018E /* posix.hpp in Headers */ = {isa = PBXBuildFile; fileRef = BBB8732F18C1E74D001F018E /* posix.hpp */; };
 		BBB8746618C1E74E001F018E /* launcher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8733018C1E74D001F018E /* launcher.cpp */; };
-		BBB8746818C1E74E001F018E /* mesos_containerizer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8733218C1E74D001F018E /* mesos_containerizer.cpp */; };
 		BBB8746A18C1E74E001F018E /* flags.hpp in Headers */ = {isa = PBXBuildFile; fileRef = BBB8733418C1E74D001F018E /* flags.hpp */; };
 		BBB8746B18C1E74E001F018E /* gc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BBB8733518C1E74D001F018E /* gc.cpp */; };
 		BBB8746C18C1E74E001F018E /* gc.hpp in Headers */ = {isa = PBXBuildFile; fileRef = BBB8733618C1E74D001F018E /* gc.hpp */; };
@@ -304,10 +310,10 @@
 			fileType = pattern.proxy;
 			isEditable = 1;
 			outputFiles = (
-				"$(DERIVED_FILE_DIR)/$(INPUT_FILE_BASE).pb.cc",
-				"$(DERIVED_FILE_DIR)/$(INPUT_FILE_BASE).pb.h",
+				"$(DERIVED_FILE_DIR)$(INPUT_FILE_DIR)/$(INPUT_FILE_BASE).pb.cc",
+				"$(DERIVED_FILE_DIR)$(INPUT_FILE_DIR)/$(INPUT_FILE_BASE).pb.h",
 			);
-			script = "/usr/local/bin/protoc -I=${INPUT_FILE_DIR} -I${PROJECT_DIR}/../include/mesos --cpp_out=${DERIVED_FILE_DIR} ${INPUT_FILE_PATH};";
+			script = "echo \"${DERIVED_FILE_DIR}${INPUT_FILE_DIR}\";\n/usr/local/bin/protoc -I${DERIVED_FILE_DIR}/include -I$(srcdir) -I${DERIVED_FILE_DIR}${BELOW_BUILD_DIR} -I${PROJECT_DIR}/../include --cpp_out=${DERIVED_FILE_DIR}${BELOW_BUILD_DIR} ${INPUT_FILE_PATH};";
 		};
 		BBB874EC18C27630001F018E /* PBXBuildRule */ = {
 			isa = PBXBuildRule;
@@ -342,6 +348,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = BBC34B0118C17CF500401037;
 			remoteInfo = build;
+		};
+		BB25307719A7A31200AB8E94 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BBF88A8618C13D7300E83221 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BBF88A9D18C13E3100E83221;
+			remoteInfo = mesos_no_3rdparty;
 		};
 		BB8DD64D192D21B500D7B2EB /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -647,6 +660,15 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		BB25306C19A7A2F200AB8E94 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
 		BB8DD65C192D231300D7B2EB /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -743,6 +765,12 @@
 		BB01F4C318C183C700E64633 /* liblog.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = liblog.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB151EF61913D34100876C12 /* containerizer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = containerizer.hpp; path = ../include/mesos/containerizer/containerizer.hpp; sourceTree = SOURCE_ROOT; };
 		BB151EF71913D34100876C12 /* containerizer.proto */ = {isa = PBXFileReference; lastKnownFileType = text; name = containerizer.proto; path = ../include/mesos/containerizer/containerizer.proto; sourceTree = SOURCE_ROOT; };
+		BB25306519A7A21500AB8E94 /* containerizer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = containerizer.cpp; sourceTree = "<group>"; };
+		BB25306619A7A21500AB8E94 /* containerizer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = containerizer.hpp; sourceTree = "<group>"; };
+		BB25306719A7A21500AB8E94 /* launch.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = launch.cpp; sourceTree = "<group>"; };
+		BB25306819A7A21500AB8E94 /* launch.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = launch.hpp; sourceTree = "<group>"; };
+		BB25306919A7A21500AB8E94 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
+		BB25306E19A7A2F200AB8E94 /* mesos-containerizer */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "mesos-containerizer"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB8DD632192D03D300D7B2EB /* linux_launcher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = linux_launcher.cpp; path = ../src/slave/containerizer/linux_launcher.cpp; sourceTree = SOURCE_ROOT; };
 		BB8DD633192D03D300D7B2EB /* linux_launcher.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = linux_launcher.hpp; path = ../src/slave/containerizer/linux_launcher.hpp; sourceTree = SOURCE_ROOT; };
 		BB8DD636192D057200D7B2EB /* external_containerizer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = external_containerizer.cpp; sourceTree = "<group>"; };
@@ -934,11 +962,11 @@
 		BBB872F918C1E74D001F018E /* repairer.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = repairer.hpp; path = ../src/master/repairer.hpp; sourceTree = SOURCE_ROOT; };
 		BBB872FA18C1E74D001F018E /* sorter.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = sorter.hpp; path = ../src/master/sorter.hpp; sourceTree = SOURCE_ROOT; };
 		BBB872FC18C1E74D001F018E /* log.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = log.hpp; path = ../src/messages/log.hpp; sourceTree = SOURCE_ROOT; };
-		BBB872FD18C1E74D001F018E /* log.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = log.proto; path = ../src/messages/log.proto; sourceTree = SOURCE_ROOT; };
+		BBB872FD18C1E74D001F018E /* log.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = log.proto; sourceTree = "<group>"; };
 		BBB872FE18C1E74D001F018E /* messages.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = messages.hpp; path = ../src/messages/messages.hpp; sourceTree = SOURCE_ROOT; };
-		BBB872FF18C1E74D001F018E /* messages.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = messages.proto; path = ../src/messages/messages.proto; sourceTree = SOURCE_ROOT; };
+		BBB872FF18C1E74D001F018E /* messages.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = messages.proto; sourceTree = "<group>"; };
 		BBB8730018C1E74D001F018E /* state.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = state.hpp; path = ../src/messages/state.hpp; sourceTree = SOURCE_ROOT; };
-		BBB8730118C1E74D001F018E /* state.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = state.proto; path = ../src/messages/state.proto; sourceTree = SOURCE_ROOT; };
+		BBB8730118C1E74D001F018E /* state.proto */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = state.proto; sourceTree = "<group>"; };
 		BBB8730418C1E74D001F018E /* mesos_executor_driver_impl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = mesos_executor_driver_impl.cpp; sourceTree = "<group>"; };
 		BBB8730518C1E74D001F018E /* mesos_executor_driver_impl.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = mesos_executor_driver_impl.hpp; sourceTree = "<group>"; };
 		BBB8730618C1E74D001F018E /* mesos_scheduler_driver_impl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = mesos_scheduler_driver_impl.cpp; sourceTree = "<group>"; };
@@ -975,8 +1003,6 @@
 		BBB8732F18C1E74D001F018E /* posix.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = posix.hpp; path = ../src/slave/containerizer/isolators/posix.hpp; sourceTree = SOURCE_ROOT; };
 		BBB8733018C1E74D001F018E /* launcher.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = launcher.cpp; path = ../src/slave/containerizer/launcher.cpp; sourceTree = SOURCE_ROOT; };
 		BBB8733118C1E74D001F018E /* launcher.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = launcher.hpp; path = ../src/slave/containerizer/launcher.hpp; sourceTree = SOURCE_ROOT; };
-		BBB8733218C1E74D001F018E /* mesos_containerizer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mesos_containerizer.cpp; path = ../src/slave/containerizer/mesos_containerizer.cpp; sourceTree = SOURCE_ROOT; };
-		BBB8733318C1E74D001F018E /* mesos_containerizer.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = mesos_containerizer.hpp; path = ../src/slave/containerizer/mesos_containerizer.hpp; sourceTree = SOURCE_ROOT; };
 		BBB8733418C1E74D001F018E /* flags.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = flags.hpp; path = ../src/slave/flags.hpp; sourceTree = SOURCE_ROOT; };
 		BBB8733518C1E74D001F018E /* gc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = gc.cpp; path = ../src/slave/gc.cpp; sourceTree = SOURCE_ROOT; };
 		BBB8733618C1E74D001F018E /* gc.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = gc.hpp; path = ../src/slave/gc.hpp; sourceTree = SOURCE_ROOT; };
@@ -1139,6 +1165,18 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BB25306B19A7A2F200AB8E94 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BB25308019A7A38A00AB8E94 /* libcurl.dylib in Frameworks */,
+				BB25307E19A7A36800AB8E94 /* libglog.0.dylib in Frameworks */,
+				BB25307F19A7A36800AB8E94 /* libprotobuf.8.dylib in Frameworks */,
+				BB25307C19A7A34600AB8E94 /* libmesos_no_3rdparty.a in Frameworks */,
+				BB25307D19A7A34600AB8E94 /* libprocess.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1320,6 +1358,18 @@
 			name = containerizer;
 			sourceTree = "<group>";
 		};
+		BB25306419A7A21500AB8E94 /* mesos */ = {
+			isa = PBXGroup;
+			children = (
+				BB25306519A7A21500AB8E94 /* containerizer.cpp */,
+				BB25306619A7A21500AB8E94 /* containerizer.hpp */,
+				BB25306719A7A21500AB8E94 /* launch.cpp */,
+				BB25306819A7A21500AB8E94 /* launch.hpp */,
+				BB25306919A7A21500AB8E94 /* main.cpp */,
+			);
+			path = mesos;
+			sourceTree = "<group>";
+		};
 		BB8DD63A192D1F0900D7B2EB /* tool */ = {
 			isa = PBXGroup;
 			children = (
@@ -1348,9 +1398,8 @@
 				BBB8724018C1E74D001F018E /* python */,
 				BBB8724618C1E74D001F018E /* resolve.cpp */,
 			);
-			name = cli;
-			path = ../src/cli;
-			sourceTree = SOURCE_ROOT;
+			path = cli;
+			sourceTree = "<group>";
 		};
 		BBB8724018C1E74D001F018E /* python */ = {
 			isa = PBXGroup;
@@ -1773,9 +1822,8 @@
 				BBB8730018C1E74D001F018E /* state.hpp */,
 				BBB8730118C1E74D001F018E /* state.proto */,
 			);
-			name = messages;
-			path = ../src/messages;
-			sourceTree = SOURCE_ROOT;
+			path = messages;
+			sourceTree = "<group>";
 		};
 		BBB8730218C1E74D001F018E /* python */ = {
 			isa = PBXGroup;
@@ -1876,6 +1924,7 @@
 		BBB8732218C1E74D001F018E /* containerizer */ = {
 			isa = PBXGroup;
 			children = (
+				BB25306419A7A21500AB8E94 /* mesos */,
 				BB8DD636192D057200D7B2EB /* external_containerizer.cpp */,
 				BB8DD637192D057200D7B2EB /* external_containerizer.hpp */,
 				BB8DD632192D03D300D7B2EB /* linux_launcher.cpp */,
@@ -1887,8 +1936,6 @@
 				BBB8732918C1E74D001F018E /* isolators */,
 				BBB8733018C1E74D001F018E /* launcher.cpp */,
 				BBB8733118C1E74D001F018E /* launcher.hpp */,
-				BBB8733218C1E74D001F018E /* mesos_containerizer.cpp */,
-				BBB8733318C1E74D001F018E /* mesos_containerizer.hpp */,
 			);
 			name = containerizer;
 			path = ../src/slave/containerizer;
@@ -2172,7 +2219,8 @@
 				BBB873B918C1E74E001F018E /* zookeeper */,
 			);
 			name = src;
-			sourceTree = "<group>";
+			path = ../src;
+			sourceTree = SOURCE_ROOT;
 		};
 		BBB874ED18C276EE001F018E /* Products */ = {
 			isa = PBXGroup;
@@ -2219,6 +2267,7 @@
 				BBB8755518C283C4001F018E /* mesos-log */,
 				BBB8756A18C28431001F018E /* mesos-resolve */,
 				BB8DD65E192D231300D7B2EB /* mesos-tests */,
+				BB25306E19A7A2F200AB8E94 /* mesos-containerizer */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -2356,7 +2405,6 @@
 				BBB8743618C1E74E001F018E /* contender.hpp in Headers */,
 				BBB8742718C1E74E001F018E /* benchmark.hpp in Headers */,
 				BBB8744618C1E74E001F018E /* sorter.hpp in Headers */,
-				BB8DD635192D040800D7B2EB /* mesos_containerizer.hpp in Headers */,
 				BBB8747118C1E74E001F018E /* paths.hpp in Headers */,
 				BBB8743A18C1E74E001F018E /* drf_sorter.hpp in Headers */,
 				BBB8741A18C1E74E001F018E /* coordinator.hpp in Headers */,
@@ -2404,7 +2452,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = BB01F4C418C183C700E64633 /* Build configuration list for PBXNativeTarget "log" */;
 			buildPhases = (
-				BBB874E718C26EC7001F018E /* Run Script */,
 				BB01F4BF18C183C700E64633 /* Sources */,
 				BB01F4C018C183C700E64633 /* Frameworks */,
 				BB01F4C118C183C700E64633 /* Headers */,
@@ -2418,6 +2465,24 @@
 			productName = log;
 			productReference = BB01F4C318C183C700E64633 /* liblog.a */;
 			productType = "com.apple.product-type.library.static";
+		};
+		BB25306D19A7A2F200AB8E94 /* mesos-containerizer */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BB25307419A7A2F200AB8E94 /* Build configuration list for PBXNativeTarget "mesos-containerizer" */;
+			buildPhases = (
+				BB25306A19A7A2F200AB8E94 /* Sources */,
+				BB25306B19A7A2F200AB8E94 /* Frameworks */,
+				BB25306C19A7A2F200AB8E94 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BB25307819A7A31200AB8E94 /* PBXTargetDependency */,
+			);
+			name = "mesos-containerizer";
+			productName = "mesos-containerizer";
+			productReference = BB25306E19A7A2F200AB8E94 /* mesos-containerizer */;
+			productType = "com.apple.product-type.tool";
 		};
 		BB8DD65D192D231300D7B2EB /* mesos-tests */ = {
 			isa = PBXNativeTarget;
@@ -2715,6 +2780,7 @@
 				BBB8754018C282D3001F018E /* mesos-execute */,
 				BBB8752A18C2825C001F018E /* mesos-executor */,
 				BBB8751718C2818C001F018E /* mesos-fetcher */,
+				BB25306D19A7A2F200AB8E94 /* mesos-containerizer */,
 				BBB871C918C18B84001F018E /* mesos-local */,
 				BBB8755418C283C4001F018E /* mesos-log */,
 				BBB871A318C18842001F018E /* mesos-master */,
@@ -2751,26 +2817,6 @@
 /* End PBXReferenceProxy section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		BBB874E718C26EC7001F018E /* Run Script */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"$(PROJECT_DIR)/../src/messages/log.proto",
-				"$(PROJECT_DIR)/../src/messages/messages.proto",
-			);
-			name = "Run Script";
-			outputPaths = (
-				"$(PROJECT_DIR)/../build/src/messages/log.pb.h",
-				"$(PROJECT_DIR)/../build/src/messages/log.pb.cc",
-				"$(PROJECT_DIR)/../build/src/messages/messages.pb.h",
-				"$(PROJECT_DIR)/../build/src/messages/messages.pb.cc",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "/usr/local/bin/protoc -I=${PROJECT_DIR}/../src/messages -I${PROJECT_DIR}/../include/mesos --cpp_out=${PROJECT_DIR}/../build/src/messages ${PROJECT_DIR}/../src/messages/log.proto\n/usr/local/bin/protoc -I=${PROJECT_DIR}/../src/messages -I${PROJECT_DIR}/../include/mesos --cpp_out=${PROJECT_DIR}/../build/src/messages ${PROJECT_DIR}/../src/messages/messages.proto";
-		};
 		BBB874EB18C275D1001F018E /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -2785,7 +2831,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/usr/local/bin/protoc -I=${PROJECT_DIR}/../src/messages -I${PROJECT_DIR}/../include/mesos --cpp_out=${PROJECT_DIR}/../build/src/messages ${PROJECT_DIR}/../src/messages/state.proto";
+			shellScript = "/usr/local/bin/protoc -I=${PROJECT_DIR}/../src/messages -I${PROJECT_DIR}/../include --cpp_out=${PROJECT_DIR}/../build/src/messages ${PROJECT_DIR}/../src/messages/state.proto";
 		};
 		BBB874FF18C27879001F018E /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -2807,7 +2853,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/usr/local/bin/protoc -I${PROJECT_DIR}/../include/mesos --cpp_out=${PROJECT_DIR}/../build/include/mesos ${PROJECT_DIR}/../include/mesos/mesos.proto\n/usr/local/bin/protoc -I${PROJECT_DIR}/../include/mesos -I${PROJECT_DIR}/../src/master --cpp_out=${PROJECT_DIR}/../build/src/master ${PROJECT_DIR}/../src/master/registry.proto\n/usr/local/bin/protoc -I${PROJECT_DIR}/../include/mesos/containerizer -I${PROJECT_DIR}/../include/mesos --cpp_out=${PROJECT_DIR}/../build/include/mesos/containerizer ${PROJECT_DIR}/../include/mesos/containerizer/containerizer.proto";
+			shellScript = "/usr/local/bin/protoc -I${PROJECT_DIR}/../include --cpp_out=${PROJECT_DIR}/../build/include ${PROJECT_DIR}/../include/mesos/mesos.proto\n/usr/local/bin/protoc -I${PROJECT_DIR}/../include -I${PROJECT_DIR}/../src/master --cpp_out=${PROJECT_DIR}/../build/src/master ${PROJECT_DIR}/../src/master/registry.proto\n/usr/local/bin/protoc -I${PROJECT_DIR}/../include/mesos/containerizer -I${PROJECT_DIR}/../include --cpp_out=${PROJECT_DIR}/../build/include/mesos/containerizer ${PROJECT_DIR}/../include/mesos/containerizer/containerizer.proto";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -2829,6 +2875,16 @@
 				BBB874DD18C1EB27001F018E /* log.cpp in Sources */,
 				BBB874DE18C1EB27001F018E /* recover.cpp in Sources */,
 				BBB874DF18C1EB27001F018E /* replica.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BB25306A19A7A2F200AB8E94 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BB25307919A7A33400AB8E94 /* containerizer.cpp in Sources */,
+				BB25307A19A7A33400AB8E94 /* launch.cpp in Sources */,
+				BB25307B19A7A33400AB8E94 /* main.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2990,7 +3046,6 @@
 				BBB8747618C1E74E001F018E /* status_update_manager.cpp in Sources */,
 				BBB8745D18C1E74E001F018E /* containerizer.cpp in Sources */,
 				BBB8745F18C1E74E001F018E /* isolator.cpp in Sources */,
-				BBB8746818C1E74E001F018E /* mesos_containerizer.cpp in Sources */,
 				BBB8746618C1E74E001F018E /* launcher.cpp in Sources */,
 				BBB874C718C1E74E001F018E /* contender.cpp in Sources */,
 				BBB874C518C1E74E001F018E /* authentication.cpp in Sources */,
@@ -3016,6 +3071,11 @@
 			isa = PBXTargetDependency;
 			target = BBC34B0118C17CF500401037 /* build */;
 			targetProxy = BB01F4B018C17D3F00E64633 /* PBXContainerItemProxy */;
+		};
+		BB25307819A7A31200AB8E94 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BBF88A9D18C13E3100E83221 /* mesos_no_3rdparty */;
+			targetProxy = BB25307719A7A31200AB8E94 /* PBXContainerItemProxy */;
 		};
 		BB8DD64E192D21B500D7B2EB /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -3236,6 +3296,41 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				EXECUTABLE_PREFIX = lib;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		BB25307519A7A2F200AB8E94 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/usr/local/Cellar/glog/0.3.3/lib,
+					/usr/local/Cellar/protobuf/2.5.0/lib,
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		BB25307619A7A2F200AB8E94 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/usr/local/Cellar/glog/0.3.3/lib,
+					/usr/local/Cellar/protobuf/2.5.0/lib,
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -3849,6 +3944,15 @@
 			buildConfigurations = (
 				BB01F4C518C183C700E64633 /* Debug */,
 				BB01F4C618C183C700E64633 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BB25307419A7A2F200AB8E94 /* Build configuration list for PBXNativeTarget "mesos-containerizer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BB25307519A7A2F200AB8E94 /* Debug */,
+				BB25307619A7A2F200AB8E94 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
