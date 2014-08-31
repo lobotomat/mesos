@@ -1064,6 +1064,14 @@ load_generator_framework_SOURCES = examples/load_generator_framework.cpp
 load_generator_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
 load_generator_framework_LDADD = libmesos.la
 
+check_PROGRAMS += test-containerizer
+test_containerizer_SOURCES = 			\
+  tests/test_containerizer.pb.h 		\
+  tests/test_containerizer.pb.cc 		\
+  tests/test_containerizer.cpp
+test_containerizer_CPPFLAGS = $(MESOS_CPPFLAGS)
+test_containerizer_LDADD = libmesos.la
+
 check_PROGRAMS += mesos-tests
 
 mesos_tests_SOURCES =				\
