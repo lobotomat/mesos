@@ -122,7 +122,7 @@ public:
 
 
 // This test has been temporarily disabled due to MESOS-1257.
-TEST_F(ExternalContainerizerTest, DISABLED_Launch)
+TEST_F(ExternalContainerizerTest, Launch)
 {
   Try<PID<Master> > master = this->StartMaster();
   ASSERT_SOME(master);
