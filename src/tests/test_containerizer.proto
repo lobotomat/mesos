@@ -42,6 +42,7 @@ message LaunchRequest
 message LaunchResult
 {
   required FutureMessage future = 1;
+  optional bool result = 2;
 }
 
 message UsageResult

@@ -422,6 +422,17 @@ private:
     ProtobufProcess<ThunkProcess>::send(from, result);
   }
 
+  // Future<bool> overload.
+  void reply(const UPID& from, const Future<bool>& future)
+  {
+    LaunchResult result;
+    result.mutable_future()->CopyFrom(futureMessage(future));
+    if (future.isReady()) {
+      result.set_result(future.get());
+    }
+    ProtobufProcess<ThunkProcess>::send(from, result);
+  }
+
   // Future<Nothing> overload.
   template<typename Res>
   void reply(const UPID& from, const Future<Nothing>& future)
@@ -447,7 +458,7 @@ private:
       const UPID& from,
       const Launch& message)
   {
-    Future<Nothing> (MesosContainerizerProcess::*launch)(
+    Future<bool> (MesosContainerizerProcess::*launch)(
       const ContainerID&,
       const TaskInfo&,
       const ExecutorInfo&,
@@ -462,8 +473,8 @@ private:
     stream << message.slave_pid();
     stream >> slave;
 
-    void (ThunkProcess::*reply)(const UPID&, const Future<Nothing>&) =
-      &ThunkProcess::reply<LaunchResult>;
+    void (ThunkProcess::*reply)(const UPID&, const Future<bool>&) =
+      &ThunkProcess::reply;
 
     dispatch(
         containerizer,

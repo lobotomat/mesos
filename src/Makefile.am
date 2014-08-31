@@ -1069,7 +1069,9 @@ test_containerizer_SOURCES = 			\
   tests/test_containerizer.pb.h 		\
   tests/test_containerizer.pb.cc 		\
   tests/test_containerizer.cpp
-test_containerizer_CPPFLAGS = $(MESOS_CPPFLAGS)
+test_containerizer_CPPFLAGS = 			\
+  -DBUILD_DIR=\"$(abs_top_builddir)\" 		\
+  $(MESOS_CPPFLAGS)
 test_containerizer_LDADD = libmesos.la
 
 check_PROGRAMS += mesos-tests
