@@ -22,6 +22,7 @@ import time
 
 import mesos.interface
 from mesos.interface import mesos_pb2
+from mesos.interface import containerizer_pb2
 import mesos.native
 
 TOTAL_TASKS = 5

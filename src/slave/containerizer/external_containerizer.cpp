@@ -50,6 +50,9 @@
 #include "slave/containerizer/external_containerizer.hpp"
 
 
+#define EXTCONT_DEBUG 1
+
+
 using lambda::bind;
 
 using std::list;
@@ -242,7 +245,13 @@ Future<Nothing> ExternalContainerizerProcess::recover(
   LOG(INFO) << "Recovering containerizer";
 
   // Ask the external containerizer to recover its internal state.
+#if EXTCONT_DEBUG
+  Try<Subprocess> invoked = invoke(
+      "recover",
+      Sandbox("/tmp/ExternalContainerizer_DEBUG", None()));
+#else
   Try<Subprocess> invoked = invoke("recover");
+#endif
 
   if (invoked.isError()) {
     return Failure("Recover failed: " + invoked.error());
@@ -464,6 +473,18 @@ Future<bool> ExternalContainerizerProcess::launch(
   launch.mutable_slave_id()->CopyFrom(slaveId);
   launch.set_slave_pid(slavePid);
   launch.set_checkpoint(checkpoint);
+
+#if EXTCONT_DEBUG
+  Try<int> out = os::open(
+      "/tmp/test_launch_data.proto",
+      O_WRONLY | O_CREAT | O_TRUNC,
+      S_IWRITE | S_IREAD | S_IRUSR | S_IWUSR | S_IRGRP | S_IRWXO);
+  if (!out.isError()) {
+    ::protobuf::write(out.get(), launch);
+    os::close(out.get());
+  }
+  ABORT();
+#endif
 
   Sandbox sandbox(directory, user);
 

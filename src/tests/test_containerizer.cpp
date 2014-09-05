@@ -41,9 +41,9 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#
+
 #include <glog/logging.h>
-#include <glog/raw_logging.h>
+//#include <glog/raw_logging.h>
 
 #include <mesos/mesos.hpp>
 #include <mesos/containerizer/containerizer.hpp>
@@ -87,6 +87,7 @@ using std::vector;
 
 using lambda::function;
 
+/*
 extern "C" void __cxa_pure_virtual()
 {
   RAW_LOG(FATAL, "Pure virtual method called");
@@ -117,6 +118,7 @@ void handler(int signal)
   }
 }
 
+*/
 
 // Slave configuration specific (MESOS_WORK_DIRECTORY) path getters.
 string thunkDirectory(const string& directory)
@@ -388,7 +390,7 @@ private:
       return;
     }
     // Garbage collect forever.
-    delay(Milliseconds(200), self(), &Self::garbageCollect);
+    delay(Milliseconds(20), self(), &Self::garbageCollect);
   }
 
   // Convert the dispatch future status into a protobuf.
@@ -671,6 +673,7 @@ int setup(const string& directory)
 {
   // Create our ThunkProcess, wrapping the containerizer process.
   ThunkProcess* process = new ThunkProcess(directory);
+
 
   VLOG(1) << "Writing PID";
   try {
@@ -975,12 +978,15 @@ int main(int argc, char** argv)
 {
   FLAGS_logbufsecs = 0;
   FLAGS_logtostderr = true;
+
+
   google::InitGoogleLogging(argv[0]);
 
   // Handles SIGSEGV, SIGILL, SIGFPE, SIGABRT, SIGBUS, SIGTERM
   // by default.
   //google::InstallFailureSignalHandler();
 
+/*
   // Set up our custom signal handlers.
   struct sigaction action;
   action.sa_handler = handler;
@@ -1003,6 +1009,7 @@ int main(int argc, char** argv)
     PLOG(FATAL) << "Failed to set sigaction";
   }
 
+*/
   hashmap<string, int(*)(const string&)> methods;
 
   // Daemon setup. Invoked by the test-containerizer itself only.
@@ -1018,7 +1025,7 @@ int main(int argc, char** argv)
   methods["destroy"] = destroy;
   methods["containers"] = containers;
 
-  if (argc != 2) {
+  if (argc < 2) {
     usage(argv[0], methods.keys());
     exit(1);
   }
@@ -1030,6 +1037,7 @@ int main(int argc, char** argv)
     exit(0);
   }
 
+/*
   if (command == "--verbose" || command == "-v") {
     FLAGS_stderrthreshold = google::INFO;
     FLAGS_minloglevel = google::INFO;
@@ -1037,6 +1045,7 @@ int main(int argc, char** argv)
     FLAGS_stderrthreshold = 0;
     FLAGS_minloglevel = 0;
   }
+  */
 
   if (!methods.contains(command)) {
     cout << "'" << command << "' is not a valid command" << endl;
