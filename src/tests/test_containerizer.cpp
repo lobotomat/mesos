@@ -778,7 +778,7 @@ int dlaunch(const string& directory)
 {
   int fd = open("/tmp/commands/launch.recordio.proto", O_RDONLY);
   if (fd == -1) {
-    cerr << ErrnoError("Failed to open file: ").message << endl;
+    cerr << ErrnoError("Failed to open /tmp/commands/launch.recordio.proto: ").message << endl;
     return 1;
   }
   Result<Launch> received = ::protobuf::read<Launch>(fd, false, false);
