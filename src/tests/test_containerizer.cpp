@@ -38,6 +38,10 @@
 
 #include <sys/file.h>
 
+#if 1
+#include <sys/resource.h> // For coredumps
+#endif
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -119,6 +123,16 @@ void handler(int signal)
 }
 
 */
+
+
+static bool enableCoreDumps(void)
+{
+    struct rlimit   limit;
+
+    limit.rlim_cur = RLIM_INFINITY;
+    limit.rlim_max = RLIM_INFINITY;
+    return setrlimit(RLIMIT_CORE, &limit) == 0;
+}
 
 // Slave configuration specific (MESOS_WORK_DIRECTORY) path getters.
 string thunkDirectory(const string& directory)
@@ -239,7 +253,8 @@ struct SyncProtocol
 
     process::terminate(process);
     process::wait(process);
-    delete process;
+    //process->join();
+    //delete process;
 
     VLOG(2) << "Future is terminal";
 
@@ -623,12 +638,10 @@ Try<R> thunk(const string& directory, const T& t)
   // Send a request and receive an answer via process protobuf
   // exchange.
 
-#if 0
+#if 1
   SyncProtocol<T, R> protocol;
   return protocol(pid.get(), t);
-#endif
-
-//  #if 0
+#else
   Protocol<T, R> protocol;
   Future<R> future = protocol(pid.get(), t);
   future.await();
@@ -640,6 +653,9 @@ Try<R> thunk(const string& directory, const T& t)
   }
 
   return future.get();
+#endif
+
+//  #if 0
   //#endif
 
   //return R();
@@ -976,11 +992,8 @@ void usage(const char* argv0, const hashset<string>& commands)
 
 int main(int argc, char** argv)
 {
-  FLAGS_logbufsecs = 0;
-  FLAGS_logtostderr = true;
-
-
-  google::InitGoogleLogging(argv[0]);
+  enableCoreDumps();
+//  google::InitGoogleLogging(argv[0]);
 
   // Handles SIGSEGV, SIGILL, SIGFPE, SIGABRT, SIGBUS, SIGTERM
   // by default.
