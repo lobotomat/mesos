@@ -17,6 +17,8 @@
 #include <stout/none.hpp>
 #include <stout/subcommand.hpp>
 
+#include <stout/os/open.hpp>
+
 #include "slave/containerizer/mesos/launch.hpp"
 #include "slave/containerizer/mesos/mount.hpp"
 
@@ -25,6 +27,7 @@ using namespace mesos::internal::slave;
 
 int main(int argc, char** argv)
 {
+  os::debug::log_fds();
   return Subcommand::dispatch(
       None(),
       argc,
