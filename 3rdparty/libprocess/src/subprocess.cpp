@@ -28,6 +28,7 @@
 #include <stout/foreach.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/os/open.hpp>
 #include <stout/os/strerror.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
@@ -191,6 +192,9 @@ Try<Subprocess> subprocess(
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& _clone)
 {
+  std::cerr << "\nsubprocess getting executed soon - current FDs status\n";
+  os::debug::log_fds();
+
   // File descriptors for redirecting stdin/stdout/stderr. These file
   // descriptors are used for different purposes depending on the
   // specified I/O modes. If the mode is PIPE, the two file
