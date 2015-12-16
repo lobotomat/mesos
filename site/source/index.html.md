@@ -10,15 +10,6 @@ title: Apache Mesos
 
 			<p> <a href="downloads/"><span class="glyphicon glyphicon-download"></span> Download Mesos 0.25.0</a> or learn how to <a href="gettingstarted/">get started</a></p>
 	  </div>
-    <div class="col-md-5 text-center download">
-			<div class="homepage-featured">
-				<h2>MesosCon Europe</h2>
-				<p>Dublin, October 8 - 9th, 2015</p>
-				#MesosCon Europe is conference organized by the Apache Mesos community, bringing together users and developers to share and learn about the project and its growing ecosystem.
-				<br /><br />
-				<a class="btn btn-default btn-success" href="http://events.linuxfoundation.org/events/mesoscon-europe/attend/register" role="button">REGISTER TODAY</a>
-			</div>
-    </div>
 	</div>
 </div>
 
