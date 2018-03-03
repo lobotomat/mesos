@@ -3701,6 +3701,60 @@ Future<Response> Master::Http::listFiles(
 }
 
 
+// Tree structure used for hierarchical role path resources accounting.
+class ResourcesTree
+{
+public:
+  ResourcesTree() : root(new Node("")) {}
+
+  void insert(const string& role, const Resources& resources)
+  {
+    // Create the path from root->leaf in the tree. Any missing nodes
+    // are created implicitly.
+    vector<string> components = strings::tokenize(role, "/");
+    CHECK(!components.empty());
+
+    Node* current = root.get();
+    foreach (const string& component, components) {
+      if (!current->children.contains(component)) {
+        current->children[component] =
+          std::unique_ptr<Node>(new Node(component));
+      }
+
+      current = current->children.at(component).get();
+      current->resources += resources;
+    }
+  }
+
+  Resources path(const string& role) const
+  {
+    vector<string> components = strings::tokenize(role, "/");
+    CHECK(!components.empty());
+
+    Resources result;
+
+    Node* current = root.get();
+    foreach (const string& component, components) {
+      current = current->children.at(component).get();
+    }
+
+    return current->resources;
+  }
+
+private:
+  struct Node
+  {
+    Node(const string& _name) : name(_name) {}
+
+    const string name;
+    Resources resources;
+    hashmap<string, std::unique_ptr<Node>> children;
+  };
+
+  std::unique_ptr<Node> root;
+};
+
+
 // This duplicates the functionality offered by `roles()`. This was necessary
 // as the JSON object returned by `roles()` was not specified in a formal way
 // i.e. via a corresponding protobuf object and would have been very hard to
@@ -3722,6 +3776,16 @@ Future<Response> Master::Http::getRoles(
       mesos::master::Response::GetRoles* getRoles =
         response.mutable_get_roles();
 
+      ResourcesTree resourcesTree;
+
+      foreach (const string& name, filteredRoles) {
+        if (master->roles.contains(name)) {
+          Role* role_ = master->roles.at(name);
+
+          resourcesTree.insert(name, role_->allocatedResources());
+        }
+      }
+
       foreach (const string& name, filteredRoles) {
         mesos::Role role;
 
@@ -3731,10 +3795,12 @@ Future<Response> Master::Http::getRoles(
           role.set_weight(1.0);
         }
 
+        // Hierarchical role resources aggregate those of their leaf
+        // roles.
+        role.mutable_resources()->CopyFrom(resourcesTree.path(name));
+
         if (master->roles.contains(name)) {
           Role* role_ = master->roles.at(name);
-
-          role.mutable_resources()->CopyFrom(role_->allocatedResources());
 
           foreachkey (const FrameworkID& frameworkId, role_->frameworks) {
             role.add_frameworks()->CopyFrom(frameworkId);
