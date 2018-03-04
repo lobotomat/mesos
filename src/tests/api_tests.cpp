@@ -1004,6 +1004,92 @@ TEST_P(MasterAPITest, GetRoles)
 }
 
 
+// Validate that the GET_ROLE endpoint provides aggregated accounting
+// information for hierarchical roles.
+TEST_P(MasterAPITest, GetRolesHierarchical)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+
+  // Adding weights to parent and child role for making them both
+  // considered "interesting" by the GET_ROLES endpoint.
+  masterFlags.weights = "a=2.0,a/b=2.5";
+
+  Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources =
+    "cpus(a):0.5;mem(a):512;ports(a):[31000-31001];"
+    "disk(a):1024;gpus(a):0;"
+    "cpus(a/b):0.5;mem(a/b):512;ports(a/b):[32000-32001];"
+    "disk(a/b):1024;gpus(a/b):0";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::settle();
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_roles("a/b");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  // We settle here to make sure that the framework has been authenticated
+  // before advancing the clock. Otherwise we would run into a authentication
+  // timeout due to the large allocation interval (1000s) of this fixture.
+  Clock::settle();
+
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  AWAIT_READY(offers);
+
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::GET_ROLES);
+
+  ContentType contentType = GetParam();
+
+  Future<v1::master::Response> v1Response =
+    post(master.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_ROLES, v1Response->type());
+
+  ASSERT_EQ(3, v1Response->get_roles().roles().size());
+  EXPECT_EQ("a", v1Response->get_roles().roles(1).name());
+  EXPECT_EQ("a/b", v1Response->get_roles().roles(2).name());
+
+  v1::Resources parentResources =
+    v1Response->get_roles().roles(1).resources();
+
+  parentResources.unallocate();
+
+  // Resources returned for the parent role 'a' are the sum of
+  // resources reserved to role 'a' and its child role 'a/b'.
+  ASSERT_EQ(
+      parentResources,
+      v1::Resources::parse(slaveFlags.resources.get()).get());
+
+  driver.stop();
+  driver.join();
+}
+
+
 TEST_P(MasterAPITest, GetOperations)
 {
   Clock::pause();
